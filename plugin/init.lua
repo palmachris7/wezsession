@@ -23,8 +23,10 @@ local function init()
 		end
 	end
 
-	local sep = require("session.utils").separator
-	require("session.state_manager").change_state_save_dir(plugin_path .. sep .. "state" .. sep)
+	local sep = "/"
+	if plugin_path then
+		require("session.state_manager").change_state_save_dir(plugin_path .. sep .. "state" .. sep)
+	end
 
 	-- Export submodules
 	pub.workspace_state = require("session.workspace_state")
