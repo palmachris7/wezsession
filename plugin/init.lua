@@ -11,6 +11,16 @@ local function init()
 	}
 	local plugin_path = dev.setup(opts)
 
+	-- Fallback: if dev.setup couldn't find the plugin, build path manually
+	if not plugin_path then
+		local src = debug.getinfo(1, "S").source
+		-- src looks like: @/path/to/plugin/init.lua
+		plugin_path = src:match("@(.+)/plugin/init%.lua$")
+		if plugin_path then
+			package.path = package.path .. ";" .. plugin_path .. "/plugin/?.lua"
+		end
+	end
+
 	local sep = require("resurrect.utils").separator
 	require("resurrect.state_manager").change_state_save_dir(plugin_path .. sep .. "state" .. sep)
 
