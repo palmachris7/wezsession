@@ -871,7 +871,7 @@ end
 --- Auto-restore callback for gui-startup.
 --- 1. Cleans up old instances
 --- 2. If instances exist and auto_restore_prompt: spawns window + shows selector
---- 3. If no instances: falls back to state_manager.resurrect_on_gui_startup()
+--- 3. If no instances: falls back to state_manager.restore_on_startup()
 function pub.auto_restore_on_startup()
 	pub.cleanup_old_instances()
 

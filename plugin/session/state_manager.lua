@@ -124,7 +124,7 @@ function pub.save_state(state, opt_name)
 		rotate_backup(fp)
 		file_io.write_state(fp, state, "workspace")
 		-- Always update current_state when saving a workspace so that
-		-- resurrect_on_gui_startup knows what to restore.
+		-- restore_on_startup knows what to restore.
 		pub.write_current_state(state.workspace, "workspace")
 	elseif state.tabs then
 		local fp = get_file_path(state.title, "window", opt_name)
@@ -313,7 +313,7 @@ function pub.write_current_state(name, type)
 	return true, nil
 end
 
----callback for resurrecting workspaces on startup
+---callback for restoring workspaces on startup
 ---@return boolean
 ---@return string|nil
 function pub.restore_on_startup()

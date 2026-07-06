@@ -3,7 +3,7 @@
 -- correct restore command, replacing the default argv replay.
 --
 -- Users can register custom handlers in their wezterm.lua:
---   resurrect.process_handlers.register({
+--   session.process_handlers.register({
 --       name = "lazygit",
 --       detect = function(info) return info.name == "lazygit" end,
 --       get_restore_cmd = function(info, _) return "lazygit" end,
@@ -449,8 +449,8 @@ end
 ---      logic can find session data regardless of which binary was used
 ---
 --- Usage in wezterm.lua:
----   local resurrect = wezterm.plugin.require("...")
----   resurrect.process_handlers.setup_claude_session_hooks()
+---   local session = wezterm.plugin.require("...")
+---   session.process_handlers.setup_claude_session_hooks()
 ---
 ---@param settings_path string|nil optional override for Claude settings file path
 ---@return boolean success

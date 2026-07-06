@@ -41,8 +41,8 @@ init()
 --- One-call setup that configures everything for session persistence
 --- and Claude Code restoration. Users call this from their wezterm.lua:
 ---
----   local resurrect = wezterm.plugin.require("https://github.com/YedPool/resurrect.wezterm")
----   resurrect.setup(config)  -- or resurrect.setup(config, opts)
+---   local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+---   session.setup(config)
 ---
 --- Options (all optional):
 ---   periodic_interval    = 300    -- seconds between periodic saves

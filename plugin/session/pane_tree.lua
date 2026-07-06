@@ -176,7 +176,7 @@ local function insert_panes(root, panes, depth)
 
 					-- Clean up `process_info.argv` by removing command flags followed by `*/nix/store/*` paths.
 					--
-					-- Original `argv` stored by `resurrect.wezterm` before sanitization:
+					-- Original `argv` stored by `session` before sanitization:
 					--
 					-- [
 					--   "/nix/store/jx332jllgyrqbnzi8svnk8xbygc9nbmp-neovim-unwrapped-0.11.5/bin/nvim",
