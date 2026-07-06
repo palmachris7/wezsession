@@ -233,6 +233,10 @@ function pub.event_driven_save(opts)
 	local last_structure = {}
 
 	local function do_save(window)
+		-- Skip auto-save while initial restore is in progress
+		if require("session.instance_manager").restoring then
+			return
+		end
 		wezterm.emit("session.state_manager.event_driven_save.start", opts)
 
 		if opts.save_workspaces then

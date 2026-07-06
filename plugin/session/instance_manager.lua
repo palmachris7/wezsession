@@ -24,6 +24,9 @@ pub.retention_days = 7
 pub.auto_restore_prompt = true
 pub.auto_restore = false
 
+-- Flag: true during initial restore to prevent auto-saves from overwriting state
+pub.restoring = false
+
 -- Cached reference to state_manager (avoids re-requiring on every call)
 local _state_manager = nil
 local function get_state_manager()
@@ -886,6 +889,7 @@ function pub.auto_restore_on_startup()
 
 	if pub.auto_restore then
 		-- Auto-restore the latest instance without prompting
+		pub.restoring = true
 		wezterm.mux.spawn_window({})
 
 		wezterm.time.call_after(1, function()
@@ -900,6 +904,7 @@ function pub.auto_restore_on_startup()
 				}
 				local instance_ids = { instances[1].id }
 				pub.restore_instances(instance_ids, gui_win, active_pane, restore_opts)
+				pub.restoring = false
 			end
 		end)
 		return
