@@ -23,12 +23,12 @@ Paste into your terminal. This creates a new config or patches your existing one
 $f="$HOME\.wezterm.lua"; if (!(Test-Path $f)) { @"
 local wezterm = require("wezterm")
 local config = wezterm.config_builder()
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
-resurrect.setup(config)
+session.setup(config)
 
 return config
-"@ | Set-Content $f -Encoding UTF8; Write-Host "Created $f with resurrect enabled" } elseif (Select-String -Path $f -Pattern "resurrect" -Quiet) { Write-Host "resurrect is already in your config" } else { Copy-Item $f "$f.bak"; $c = Get-Content $f -Raw; $req = 'local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")'; $c = $c -replace '(local\s+config\s*=\s*wezterm\.config_builder\(\))', "`$1`n$req"; $c = $c -replace '(return\s+config)', "resurrect.setup(config)`n`$1"; Set-Content $f $c -Encoding UTF8; Write-Host "Updated $f (backup saved to $f.bak)" }
+"@ | Set-Content $f -Encoding UTF8; Write-Host "Created $f with wezsession enabled" } elseif (Select-String -Path $f -Pattern "wezsession" -Quiet) { Write-Host "wezsession is already in your config" } else { Copy-Item $f "$f.bak"; $c = Get-Content $f -Raw; $req = 'local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")'; $c = $c -replace '(local\s+config\s*=\s*wezterm\.config_builder\(\))', "`$1`n$req"; $c = $c -replace '(return\s+config)', "session.setup(config)`n`$1"; Set-Content $f $c -Encoding UTF8; Write-Host "Updated $f (backup saved to $f.bak)" }
 ```
 
 **Bash (macOS / Linux):**
@@ -37,13 +37,13 @@ return config
 f="$HOME/.wezterm.lua"; if [ ! -f "$f" ]; then cat > "$f" << 'EOF'
 local wezterm = require("wezterm")
 local config = wezterm.config_builder()
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
-resurrect.setup(config)
+session.setup(config)
 
 return config
 EOF
-echo "Created $f with resurrect enabled"; elif grep -q "resurrect" "$f"; then echo "resurrect is already in your config"; else cp "$f" "$f.bak"; sed -i.tmp '/config_builder()/a local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")' "$f"; sed -i.tmp 's/return config/resurrect.setup(config)\nreturn config/' "$f"; rm -f "$f.tmp"; echo "Updated $f (backup saved to $f.bak)"; fi
+echo "Created $f with wezsession enabled"; elif grep -q "wezsession" "$f"; then echo "wezsession is already in your config"; else cp "$f" "$f.bak"; sed -i.tmp '/config_builder()/a local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")' "$f"; sed -i.tmp 's/return config/session.setup(config)\nreturn config/' "$f"; rm -f "$f.tmp"; echo "Updated $f (backup saved to $f.bak)"; fi
 ```
 
 Then restart WezTerm. On first launch it automatically downloads the plugin from GitHub.
@@ -67,13 +67,13 @@ If you don't have one yet, create it. See the [WezTerm config docs](https://wezf
 Add the `require` line near the top (after `local config = wezterm.config_builder()`):
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 ```
 
 Add the `setup` call before `return config`:
 
 ```lua
-resurrect.setup(config)
+session.setup(config)
 ```
 
 A complete minimal config looks like this:
@@ -81,11 +81,11 @@ A complete minimal config looks like this:
 ```lua
 local wezterm = require("wezterm")
 local config = wezterm.config_builder()
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 -- your existing config here (colors, fonts, shell, etc.)
 
-resurrect.setup(config)
+session.setup(config)
 
 return config
 ```
@@ -108,7 +108,7 @@ No manual plugin installation needed -- `wezterm.plugin.require()` auto-fetches 
 All options are optional. Defaults are shown below:
 
 ```lua
-resurrect.setup(config, {
+session.setup(config, {
   periodic_interval    = 300,   -- seconds between periodic saves (default: 5 min)
   restore_delay        = 3,     -- seconds to wait before sending restore commands
   save_workspaces      = true,  -- save workspace state
@@ -125,7 +125,7 @@ resurrect.setup(config, {
 Set any option to `false` to disable that feature. For example, to skip keybindings and add your own:
 
 ```lua
-resurrect.setup(config, { keybindings = false })
+session.setup(config, { keybindings = false })
 
 -- Add your own custom bindings here
 config.keys = { ... }
@@ -139,13 +139,13 @@ If you need fine-grained control over each component, you can configure them ind
 
 ```lua
 local wezterm = require("wezterm")
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 ```
 
 2. Saving workspace, window and/or tab state based on name and title:
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 config.keys = {
   -- ...
@@ -153,25 +153,25 @@ config.keys = {
     key = "w",
     mods = "ALT",
     action = wezterm.action_callback(function(win, pane)
-        resurrect.state_manager.save_state(resurrect.workspace_state.get_workspace_state())
+        session.state_manager.save_state(session.workspace_state.get_workspace_state())
       end),
   },
   {
     key = "W",
     mods = "ALT",
-    action = resurrect.window_state.save_window_action(),
+    action = session.window_state.save_window_action(),
   },
   {
     key = "T",
     mods = "ALT",
-    action = resurrect.tab_state.save_tab_action(),
+    action = session.tab_state.save_tab_action(),
   },
   {
     key = "s",
     mods = "ALT",
     action = wezterm.action_callback(function(win, pane)
-        resurrect.state_manager.save_state(resurrect.workspace_state.get_workspace_state())
-        resurrect.window_state.save_window_action()
+        session.state_manager.save_state(session.workspace_state.get_workspace_state())
+        session.window_state.save_window_action()
       end),
   },
 }
@@ -180,7 +180,7 @@ config.keys = {
 3. Loading workspace or window state via. fuzzy finder:
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 config.keys = {
   -- ...
@@ -188,24 +188,24 @@ config.keys = {
     key = "r",
     mods = "ALT",
     action = wezterm.action_callback(function(win, pane)
-      resurrect.fuzzy_loader.fuzzy_load(win, pane, function(id, label)
+      session.fuzzy_loader.fuzzy_load(win, pane, function(id, label)
         local type = string.match(id, "^([^/]+)") -- match before '/'
         id = string.match(id, "([^/]+)$") -- match after '/'
         id = string.match(id, "(.+)%..+$") -- remove file extention
         local opts = {
           relative = true,
           restore_text = true,
-          on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+          on_pane_restore = session.tab_state.default_on_pane_restore,
         }
         if type == "workspace" then
-          local state = resurrect.state_manager.load_state(id, "workspace")
-          resurrect.workspace_state.restore_workspace(state, opts)
+          local state = session.state_manager.load_state(id, "workspace")
+          session.workspace_state.restore_workspace(state, opts)
         elseif type == "window" then
-          local state = resurrect.state_manager.load_state(id, "window")
-          resurrect.window_state.restore_window(pane:window(), state, opts)
+          local state = session.state_manager.load_state(id, "window")
+          session.window_state.restore_window(pane:window(), state, opts)
         elseif type == "tab" then
-          local state = resurrect.state_manager.load_state(id, "tab")
-          resurrect.tab_state.restore_tab(pane:tab(), state, opts)
+          local state = session.state_manager.load_state(id, "tab")
+          session.tab_state.restore_tab(pane:tab(), state, opts)
         end
       end)
     end),
@@ -230,8 +230,8 @@ Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 4.2. Enable encryption in your Wezterm config:
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
-resurrect.state_manager.set_encryption({
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+session.state_manager.set_encryption({
   enable = true,
   method = "age" -- "age" is the default encryption method, but you can also specify "rage" or "gpg"
   private_key = "/path/to/private/key.txt", -- if using "gpg", you can omit this
@@ -251,7 +251,7 @@ resurrect.state_manager.set_encryption({
 Alternate implementations are possible by providing your own `encrypt` and `decrypt` functions:
 
 ```lua
-resurrect.state_manager.set_encryption({
+session.state_manager.set_encryption({
   enable = true,
   private_key = "/path/to/private/key.txt",
   public_key = "public_key",
@@ -287,7 +287,7 @@ If you wish to share a non-documented way of encrypting your files or think some
 
 ## How do I use it?
 
-I use the builtin `resurrect.state_manager.periodic_save()` to save my workspaces every 15 minutes.
+I use the builtin `session.state_manager.periodic_save()` to save my workspaces every 15 minutes.
 This ensures that if I close Wezterm, then I can restore my session state to a state which is at most 15 minutes old.
 
 I also use it to restore the state of my workspaces. As I use the plugin [smart_workspace_switcher.wezterm](https://github.com/MLFlexer/smart_workspace_switcher.wezterm),
@@ -297,20 +297,20 @@ I have added the following to my configuration to be able to do this whenever I 
 ```lua
 -- loads the state whenever I create a new workspace
 wezterm.on("smart_workspace_switcher.workspace_switcher.created", function(window, path, label)
-  local workspace_state = resurrect.workspace_state
+  local workspace_state = session.workspace_state
 
-  workspace_state.restore_workspace(resurrect.state_manager.load_state(label, "workspace"), {
+  workspace_state.restore_workspace(session.state_manager.load_state(label, "workspace"), {
     window = window,
     relative = true,
     restore_text = true,
-    on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+    on_pane_restore = session.tab_state.default_on_pane_restore,
   })
 end)
 
 -- Saves the state whenever I select a workspace
 wezterm.on("smart_workspace_switcher.workspace_switcher.selected", function(window, path, label)
-  local workspace_state = resurrect.workspace_state
-  resurrect.state_manager.save_state(workspace_state.get_workspace_state())
+  local workspace_state = session.workspace_state
+  session.state_manager.save_state(workspace_state.get_workspace_state())
 end)
 ```
 
@@ -320,7 +320,7 @@ You can checkout my configuration [here](https://github.com/MLFlexer/.dotfiles/t
 
 ### Periodic saving of state
 
-`resurrect.state_manager.periodic_save(opts?)` will save the workspace state every 15 minutes by default.
+`session.state_manager.periodic_save(opts?)` will save the workspace state every 15 minutes by default.
 You can add the `opts` table to change the behaviour. It exposes the following options:
 
 ```lua
@@ -334,13 +334,13 @@ You can add the `opts` table to change the behaviour. It exposes the following o
 
 ### Event-driven saving of state
 
-`resurrect.state_manager.event_driven_save(opts?)` saves state immediately whenever
+`session.state_manager.event_driven_save(opts?)` saves state immediately whenever
 the pane or tab structure changes (new split, new tab, closed pane), rather than
 waiting for a periodic timer. This is the recommended approach when you want
 state to always be current.
 
 ```lua
-resurrect.state_manager.event_driven_save({
+session.state_manager.event_driven_save({
   save_workspaces = true,  -- default: true
   save_windows    = false, -- default: false
   save_tabs       = false, -- default: false
@@ -368,13 +368,13 @@ precmd_functions+=(_wezterm_precmd)
 Then pass the matching variable name to `event_driven_save`:
 
 ```lua
-resurrect.state_manager.event_driven_save({ user_var = "WEZTERM_SAVE" })
+session.state_manager.event_driven_save({ user_var = "WEZTERM_SAVE" })
 ```
 
 `event_driven_save` also keeps `current_state` up to date on every save, which is
-required for `resurrect_on_gui_startup` to restore the correct workspace.
+required for `session_on_gui_startup` to restore the correct workspace.
 
-### Resurrecting on startup
+### Sessioning on startup
 
 If you use `setup()`, startup restoration is automatic. On startup:
 1. Old instances (older than `retention_days`) are cleaned up
@@ -386,25 +386,25 @@ You can dismiss the selector (Esc) to start fresh.
 For manual configuration without `setup()`, you can still use the legacy approach:
 
 ```lua
-wezterm.on("gui-startup", resurrect.state_manager.resurrect_on_gui_startup)
+wezterm.on("gui-startup", session.state_manager.session_on_gui_startup)
 ```
 
 This will read a file which has been written by the
-`resurrect.state_manager.write_current_state("workspace name", "workspace")` function.
+`session.state_manager.write_current_state("workspace name", "workspace")` function.
 
 > [!NOTE]
 > For this to work, you must include a way to write the current workspace,
-> be it via. the `resurrect.state_manager.periodic_save` event or when changing workspaces.
+> be it via. the `session.state_manager.periodic_save` event or when changing workspaces.
 
 ### Limiting the amount of output lines saved for a pane
 
-`resurrect.state_manager.set_max_nlines(number)` will limit each pane to save
+`session.state_manager.set_max_nlines(number)` will limit each pane to save
 at most `number` lines to the state.
 This can improve performance when saving and loading state.
 
 ### save_state options
 
-`resurrect.state_manager.save_state(state, opt_name?)` takes an optional string argument,
+`session.state_manager.save_state(state, opt_name?)` takes an optional string argument,
 which will rename the file to the name of the string.
 
 ### restore_opts
@@ -421,7 +421,7 @@ pane: Pane?, -- Restore in this window
 tab: MuxTab?, -- Restore in this window
 window: MuxWindow, -- Restore in this window
 resize_window: boolean?, -- Resizes the window, default: true
-on_pane_restore: fun(pane_tree: pane_tree)} -- Function to restore panes, use resurrect.tab_state.default_on_pane_restore
+on_pane_restore: fun(pane_tree: pane_tree)} -- Function to restore panes, use session.tab_state.default_on_pane_restore
 ```
 
 #### Windows not resizing correctly
@@ -439,11 +439,11 @@ function with `restore_opts` containing the window and `close_open_tabs` like so
 local opts = {
   close_open_tabs = true,
   window = pane:window(),
-  on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+  on_pane_restore = session.tab_state.default_on_pane_restore,
   relative = true,
   restore_text = true,
 }
-resurrect.window_state.restore_window(pane:window(), state, opts)
+session.window_state.restore_window(pane:window(), state, opts)
 ```
 
 This will restore the state into the passed window and additionally close all
@@ -451,7 +451,7 @@ the tabs in the window, such that only the restored tabs are visible after resto
 
 ### fuzzy_load opts
 
-the `resurrect.fuzzy_loader.fuzzy_load(window, pane, callback, opts?)` function takes an
+the `session.fuzzy_loader.fuzzy_load(window, pane, callback, opts?)` function takes an
 optional `opts` argument, which has the following types:
 
 ```lua
@@ -481,7 +481,7 @@ This is used to format labels, ignore saved state, change the title and change t
 ### Change the directory to store the saved state
 
 ```lua
-resurrect.state_manager.change_state_save_dir("/some/other/directory")
+session.state_manager.change_state_save_dir("/some/other/directory")
 ```
 
 > [!WARNING]
@@ -492,55 +492,55 @@ resurrect.state_manager.change_state_save_dir("/some/other/directory")
 >
 > ```lua
 > -- Set some directory where Wezterm has write access
-> resurrect.state_manager.change_state_save_dir("C:\\Users\\<user>\\Desktop\\state\\")
+> session.state_manager.change_state_save_dir("C:\\Users\\<user>\\Desktop\\state\\")
 > ```
 
 ### Events
 
 This plugin emits the following events that you can use for your own callback functions:
 
-- `resurrect.error(err)`
-- `resurrect.file_io.decrypt.finished(file_path)`
-- `resurrect.file_io.decrypt.start(file_path)`
-- `resurrect.file_io.encrypt.finished(file_path)`
-- `resurrect.file_io.encrypt.start(file_path)`
-- `resurrect.file_io.sanitize_json.finished(data)`
-- `resurrect.file_io.sanitize_json.start(data)`
-- `resurrect.fuzzy_loader.fuzzy_load.finished(window, pane)`
-- `resurrect.fuzzy_loader.fuzzy_load.start(window, pane)`
-- `resurrect.state_manager.delete_state.finished(file_path)`
-- `resurrect.state_manager.delete_state.start(file_path)`
-- `resurrect.state_manager.load_state.finished(name, type)`
-- `resurrect.state_manager.load_state.start(name, type)`
-- `resurrect.state_manager.event_driven_save.start(opts)`
-- `resurrect.state_manager.event_driven_save.finished(opts)`
-- `resurrect.state_manager.periodic_save.start(opts)`
-- `resurrect.state_manager.periodic_save.finished(opts)`
-- `resurrect.file_io.write_state.finished(file_path, event_type)`
-- `resurrect.file_io.write_state.start(file_path, event_type)`
-- `resurrect.instance_manager.save_instance.finished(instance_id)`
-- `resurrect.instance_manager.delete_instance.finished(instance_id)`
-- `resurrect.tab_state.restore_tab.finished`
-- `resurrect.tab_state.restore_tab.start`
-- `resurrect.window_state.restore_window.finished`
-- `resurrect.window_state.restore_window.start`
-- `resurrect.workspace_state.restore_workspace.finished`
-- `resurrect.workspace_state.restore_workspace.start`
+- `session.error(err)`
+- `session.file_io.decrypt.finished(file_path)`
+- `session.file_io.decrypt.start(file_path)`
+- `session.file_io.encrypt.finished(file_path)`
+- `session.file_io.encrypt.start(file_path)`
+- `session.file_io.sanitize_json.finished(data)`
+- `session.file_io.sanitize_json.start(data)`
+- `session.fuzzy_loader.fuzzy_load.finished(window, pane)`
+- `session.fuzzy_loader.fuzzy_load.start(window, pane)`
+- `session.state_manager.delete_state.finished(file_path)`
+- `session.state_manager.delete_state.start(file_path)`
+- `session.state_manager.load_state.finished(name, type)`
+- `session.state_manager.load_state.start(name, type)`
+- `session.state_manager.event_driven_save.start(opts)`
+- `session.state_manager.event_driven_save.finished(opts)`
+- `session.state_manager.periodic_save.start(opts)`
+- `session.state_manager.periodic_save.finished(opts)`
+- `session.file_io.write_state.finished(file_path, event_type)`
+- `session.file_io.write_state.start(file_path, event_type)`
+- `session.instance_manager.save_instance.finished(instance_id)`
+- `session.instance_manager.delete_instance.finished(instance_id)`
+- `session.tab_state.restore_tab.finished`
+- `session.tab_state.restore_tab.start`
+- `session.window_state.restore_window.finished`
+- `session.window_state.restore_window.start`
+- `session.workspace_state.restore_workspace.finished`
+- `session.workspace_state.restore_workspace.start`
 
 Example: sending a toast notification when specified events occur, but suppress on `periodic_save()`:
 
 ```lua
-local resurrect_event_listeners = {
-  "resurrect.error",
-  "resurrect.state_manager.save_state.finished",
+local session_event_listeners = {
+  "session.error",
+  "session.state_manager.save_state.finished",
 }
 local is_periodic_save = false
-wezterm.on("resurrect.periodic_save", function()
+wezterm.on("session.periodic_save", function()
   is_periodic_save = true
 end)
-for _, event in ipairs(resurrect_event_listeners) do
+for _, event in ipairs(session_event_listeners) do
   wezterm.on(event, function(...)
-    if event == "resurrect.state_manager.save_state.finished" and is_periodic_save then
+    if event == "session.state_manager.save_state.finished" and is_periodic_save then
       is_periodic_save = false
       return
     end
@@ -549,7 +549,7 @@ for _, event in ipairs(resurrect_event_listeners) do
     for _, v in ipairs(args) do
       msg = msg .. " " .. tostring(v)
     end
-    wezterm.gui.gui_windows()[1]:toast_notification("Wezterm - resurrect", msg, nil, 4000)
+    wezterm.gui.gui_windows()[1]:toast_notification("Wezterm - session", msg, nil, 4000)
   end)
 end
 ```
@@ -604,7 +604,7 @@ Here is an example of a json file:
 You can use the fuzzy finder to delete a saved state file by adding a keybind to your config:
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
+local session = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 config.keys = {
   -- ...
@@ -612,8 +612,8 @@ config.keys = {
     key = "d",
     mods = "ALT",
     action = wezterm.action_callback(function(win, pane)
-      resurrect.fuzzy_loader.fuzzy_load(win, pane, function(id)
-          resurrect.state_manager.delete_state(id)
+      session.fuzzy_loader.fuzzy_load(win, pane, function(id)
+          session.state_manager.delete_state(id)
         end,
         {
           title = "Delete State",
@@ -634,7 +634,7 @@ If you would like to add entries in your Wezterm command palette for renaming an
 local workspace_switcher = wezterm.plugin.require("https://github.com/MLFlexer/smart_workspace_switcher.wezterm")
 
 wezterm.on("augment-command-palette", function(window, pane)
-  local workspace_state = resurrect.workspace_state
+  local workspace_state = session.workspace_state
   return {
     {
       brief = "Window | Workspace: Switch Workspace",
@@ -649,7 +649,7 @@ wezterm.on("augment-command-palette", function(window, pane)
         action = wezterm.action_callback(function(window, pane, line)
           if line then
             wezterm.mux.rename_workspace(wezterm.mux.get_active_workspace(), line)
-            resurrect.state_manager.save_state(workspace_state.get_workspace_state())
+            session.state_manager.save_state(workspace_state.get_workspace_state())
           end
         end),
       }),
