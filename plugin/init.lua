@@ -56,6 +56,7 @@ init()
 ---   status_bar           = true   -- show save time + tab titles in right status
 ---   claude_hooks         = true   -- auto-configure Claude Code SessionStart hook
 ---   auto_restore_prompt  = true   -- show instance selector on startup if saved instances exist
+---   auto_restore         = false  -- auto-restore latest instance on startup (skips selector)
 ---   retention_days       = 7      -- auto-delete instance states older than this
 ---
 ---@param config table wezterm config_builder object
@@ -70,6 +71,7 @@ function pub.setup(config, opts)
 	pub.instance_manager.init_instance_id()
 	pub.instance_manager.retention_days = opts.retention_days or 7
 	pub.instance_manager.auto_restore_prompt = opts.auto_restore_prompt ~= false
+	pub.instance_manager.auto_restore = opts.auto_restore or false
 
 	-- Claude Code session hook setup (idempotent)
 	if opts.claude_hooks ~= false then

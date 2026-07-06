@@ -22,6 +22,7 @@ pub.display_name = nil
 -- Configuration (set via setup())
 pub.retention_days = 7
 pub.auto_restore_prompt = true
+pub.auto_restore = false
 
 -- Cached reference to state_manager (avoids re-requiring on every call)
 local _state_manager = nil
@@ -880,6 +881,27 @@ function pub.auto_restore_on_startup()
 	if #instances == 0 then
 		-- Backward compat: fall back to current_state mechanism
 		get_state_manager().restore_on_startup()
+		return
+	end
+
+	if pub.auto_restore then
+		-- Auto-restore the latest instance without prompting
+		wezterm.mux.spawn_window({})
+
+		wezterm.time.call_after(1, function()
+			local gui_windows = wezterm.gui.gui_windows()
+			if #gui_windows > 0 then
+				local gui_win = gui_windows[1]
+				local active_pane = gui_win:active_pane()
+				local restore_opts = {
+					relative = true,
+					restore_text = true,
+					on_pane_restore = require("session.tab_state").default_on_pane_restore,
+				}
+				local instance_ids = { instances[1].id }
+				pub.restore_instances(instance_ids, gui_win, active_pane, restore_opts)
+			end
+		end)
 		return
 	end
 
