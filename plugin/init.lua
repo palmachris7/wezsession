@@ -97,18 +97,31 @@ function pub.setup(config, opts)
 	-- Status bar: show save time + tab titles
 	if opts.status_bar ~= false then
 		local last_save_time = nil
+		local save_timer = nil
 
 		-- Listen to all save-finished events for status bar updates
 		wezterm.on("resurrect.state_manager.event_driven_save.finished", function()
 			last_save_time = os.date("%H:%M:%S")
+			if save_timer then save_timer:cancel() end
+			save_timer = wezterm.time.call_after(4, function()
+				last_save_time = nil
+			end)
 		end)
 
 		wezterm.on("resurrect.state_manager.periodic_save.finished", function()
 			last_save_time = os.date("%H:%M:%S")
+			if save_timer then save_timer:cancel() end
+			save_timer = wezterm.time.call_after(4, function()
+				last_save_time = nil
+			end)
 		end)
 
 		wezterm.on("resurrect.save.finished", function()
 			last_save_time = os.date("%H:%M:%S")
+			if save_timer then save_timer:cancel() end
+			save_timer = wezterm.time.call_after(4, function()
+				last_save_time = nil
+			end)
 		end)
 
 		wezterm.on("update-right-status", function(window, pane)
@@ -134,7 +147,10 @@ function pub.setup(config, opts)
 
 			local status = ""
 			if last_save_time then
-				status = "saved " .. last_save_time .. " | " .. title_str
+				status = " " .. last_save_time
+				if title_str ~= "" then
+					status = status .. " | " .. title_str
+				end
 			elseif title_str ~= "" then
 				status = title_str
 			end
