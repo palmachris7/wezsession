@@ -11,13 +11,15 @@ local function init()
 	}
 	local plugin_path = dev.setup(opts)
 
-	-- Fallback: if dev.setup couldn't find the plugin, build path manually
+	-- Fallback: ensure plugin path is in package.path for sub-module resolution
 	if not plugin_path then
 		local src = debug.getinfo(1, "S").source
-		-- src looks like: @/path/to/plugin/init.lua
 		plugin_path = src:match("@(.+)/plugin/init%.lua$")
-		if plugin_path then
-			package.path = package.path .. ";" .. plugin_path .. "/plugin/?.lua"
+	end
+	if plugin_path then
+		local path = plugin_path .. "/plugin/?.lua"
+		if not package.path:find(path, 1, true) then
+			package.path = package.path .. ";" .. path
 		end
 	end
 
