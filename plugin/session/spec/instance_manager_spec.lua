@@ -11,14 +11,14 @@ end
 -- ---------------------------------------------------------------------------
 
 -- Clear cached modules so stubs from other spec files don't leak in
-package.loaded["resurrect.file_io"] = nil
-package.loaded["resurrect.utils"] = nil
-package.loaded["resurrect.state_manager"] = nil
-package.loaded["resurrect.instance_manager"] = nil
-package.loaded["resurrect.workspace_state"] = nil
-package.loaded["resurrect.window_state"] = nil
-package.loaded["resurrect.tab_state"] = nil
-package.loaded["resurrect.fuzzy_loader"] = nil
+package.loaded["session.file_io"] = nil
+package.loaded["session.utils"] = nil
+package.loaded["session.state_manager"] = nil
+package.loaded["session.instance_manager"] = nil
+package.loaded["session.workspace_state"] = nil
+package.loaded["session.window_state"] = nil
+package.loaded["session.tab_state"] = nil
+package.loaded["session.fuzzy_loader"] = nil
 
 local emitted_events = {}
 local written_files = {}
@@ -152,7 +152,7 @@ end
 local file_store = {}
 local moved_files = {}
 _G._file_io_last_load_path = nil
-package.preload["resurrect.file_io"] = function()
+package.preload["session.file_io"] = function()
     return {
         write_file = function(path, content)
             written_files[path] = content
@@ -204,7 +204,7 @@ end
 
 -- Stub utils
 local sep = is_windows() and "\\" or "/"
-package.preload["resurrect.utils"] = function()
+package.preload["session.utils"] = function()
     return {
         is_windows = is_windows(),
         is_mac = false,
@@ -224,18 +224,18 @@ package.preload["resurrect.utils"] = function()
 end
 
 -- Stub state_manager
-package.preload["resurrect.state_manager"] = function()
+package.preload["session.state_manager"] = function()
     return {
         save_state_dir = is_windows()
-            and ((os.getenv("TEMP") or "C:\\Temp") .. "\\resurrect_im_test\\state")
-            or "/tmp/resurrect_im_test/state",
+            and ((os.getenv("TEMP") or "C:\\Temp") .. "\\session_im_test\\state")
+            or "/tmp/session_im_test/state",
         resurrect_on_gui_startup = function() return true end,
         load_state = function() return {} end,
     }
 end
 
 -- Stub other modules that instance_manager might require
-package.preload["resurrect.workspace_state"] = function()
+package.preload["session.workspace_state"] = function()
     return {
         get_workspace_state = function()
             return { workspace = "default", window_states = {} }
@@ -243,16 +243,16 @@ package.preload["resurrect.workspace_state"] = function()
         restore_workspace = function() end,
     }
 end
-package.preload["resurrect.window_state"] = function()
+package.preload["session.window_state"] = function()
     return { restore_window = function() end }
 end
-package.preload["resurrect.tab_state"] = function()
+package.preload["session.tab_state"] = function()
     return {
         default_on_pane_restore = function() end,
         restore_tab = function() end,
     }
 end
-package.preload["resurrect.fuzzy_loader"] = function()
+package.preload["session.fuzzy_loader"] = function()
     return { fuzzy_load = function() end }
 end
 
@@ -275,7 +275,7 @@ rawset(os, "remove", function(path)
 end)
 
 -- Now require the module under test
-local instance_manager = require("resurrect.instance_manager")
+local instance_manager = require("session.instance_manager")
 
 -- ---------------------------------------------------------------------------
 -- Tests
@@ -417,7 +417,7 @@ describe("instance_manager", function()
 
             local found = false
             for _, e in ipairs(emitted_events) do
-                if e.event == "resurrect.instance_manager.delete_instance.finished" then
+                if e.event == "session.instance_manager.delete_instance.finished" then
                     found = true
                 end
             end
@@ -656,7 +656,7 @@ describe("instance_manager", function()
 
             local found = false
             for _, e in ipairs(emitted_events) do
-                if e.event == "resurrect.instance_manager.tombstone_instance.finished" then
+                if e.event == "session.instance_manager.tombstone_instance.finished" then
                     found = true
                 end
             end

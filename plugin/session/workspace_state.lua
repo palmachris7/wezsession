@@ -1,5 +1,5 @@
 local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
-local window_state_mod = require("resurrect.window_state")
+local window_state_mod = require("session.window_state")
 
 local pub = {}
 
@@ -11,7 +11,7 @@ function pub.restore_workspace(workspace_state, opts)
 		return
 	end
 
-	wezterm.emit("resurrect.workspace_state.restore_workspace.start")
+	wezterm.emit("session.workspace_state.restore_workspace.start")
 	if opts == nil then
 		opts = {}
 	end
@@ -47,7 +47,7 @@ function pub.restore_workspace(workspace_state, opts)
 	else
 		wezterm.mux.rename_workspace(wezterm.mux.get_active_workspace(), workspace_state.workspace)
 	end
-	wezterm.emit("resurrect.workspace_state.restore_workspace.finished")
+	wezterm.emit("session.workspace_state.restore_workspace.finished")
 end
 
 ---Returns the state of the current workspace

@@ -56,7 +56,7 @@ local search_paths = {
 
 package.path = table.concat(search_paths, ";") .. ";" .. package.path
 
-local utils = require("resurrect.utils")
+local utils = require("session.utils")
 
 local sep = utils.is_windows and "\\" or "/"
 
@@ -92,9 +92,9 @@ local function unique_tmp_base()
   local id = tostring(os.time()) .. "_" .. tostring({}):gsub("[^%w]", "")
   if utils.is_windows then
     local tmp_dir = os.getenv("TEMP") or os.getenv("TMP") or "C:\\Temp"
-    return tmp_dir .. "\\_resurrect_test_" .. id
+    return tmp_dir .. "\\_session_test_" .. id
   else
-    return "/tmp/_resurrect_test_" .. id
+    return "/tmp/_session_test_" .. id
   end
 end
 
@@ -148,7 +148,7 @@ describe("utils.ensure_folder_exists", function()
 
   it("handles relative paths", function()
     local id = tostring({}):gsub("[^%w]", "")
-    local rel_base = "_resurrect_rel_" .. id
+    local rel_base = "_session_rel_" .. id
     -- Register before asserting so after_each cleans up even on failure.
     -- This path lands in CWD rather than the temp root, so it cannot be
     -- covered by the test_base cleanup.
@@ -166,7 +166,7 @@ describe("utils.ensure_folder_exists", function()
   if utils.is_windows then
     it("handles absolute paths with a drive letter", function()
       local drive = (os.getenv("TEMP") or "C:\\"):match("^(%a:)") or "C:"
-      local abs_base = drive .. "\\_resurrect_abs_" .. tostring({}):gsub("[^%w]", "")
+      local abs_base = drive .. "\\_session_abs_" .. tostring({}):gsub("[^%w]", "")
       table.insert(cleanup_extras, abs_base)
       local abs_nested = abs_base .. "\\x\\y"
       assert.is_true(utils.ensure_folder_exists(abs_nested))
@@ -176,10 +176,10 @@ describe("utils.ensure_folder_exists", function()
     it("normalises drive-relative paths (C:foo) to absolute from drive root", function()
       local drive = (os.getenv("TEMP") or "C:\\"):match("^(%a:)") or "C:"
       local id = tostring({}):gsub("[^%w]", "")
-      local abs_base = drive .. "\\_resurrect_driverel_" .. id
+      local abs_base = drive .. "\\_session_driverel_" .. id
       table.insert(cleanup_extras, abs_base)
       -- Pass the path without a separator after the drive letter.
-      local driverel = drive .. "_resurrect_driverel_" .. id .. "\\sub"
+      local driverel = drive .. "_session_driverel_" .. id .. "\\sub"
       -- The function should normalise this to drive:\... and create it there.
       local expected = abs_base .. "\\sub"
       assert.is_true(utils.ensure_folder_exists(driverel))

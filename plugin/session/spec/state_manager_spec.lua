@@ -4,15 +4,15 @@ end
 
 -- Clear any previously cached modules AND preloads from other spec files
 -- (busted shares one Lua process, so earlier specs may have loaded different stubs).
-package.loaded["resurrect.file_io"] = nil
-package.loaded["resurrect.state_manager"] = nil
-package.loaded["resurrect.utils"] = nil
-package.loaded["resurrect.instance_manager"] = nil
+package.loaded["session.file_io"] = nil
+package.loaded["session.state_manager"] = nil
+package.loaded["session.utils"] = nil
+package.loaded["session.instance_manager"] = nil
 package.loaded["wezterm"] = nil
-package.preload["resurrect.file_io"] = nil
-package.preload["resurrect.state_manager"] = nil
-package.preload["resurrect.utils"] = nil
-package.preload["resurrect.instance_manager"] = nil
+package.preload["session.file_io"] = nil
+package.preload["session.state_manager"] = nil
+package.preload["session.utils"] = nil
+package.preload["session.instance_manager"] = nil
 
 -- Minimal wezterm stub (needs log_error/log_info for instance_manager compat).
 local wezterm_stub = {
@@ -45,7 +45,7 @@ rawset(os, "remove", function(path)
   return true
 end)
 
-package.loaded["resurrect.file_io"] = {
+package.loaded["session.file_io"] = {
   load_json = function(path)
     last_load_path = path
     return {}
@@ -82,22 +82,22 @@ package.loaded["resurrect.file_io"] = {
 }
 
 -- Stub instance_manager so state_manager's require doesn't pull in the real module
-package.loaded["resurrect.instance_manager"] = {
+package.loaded["session.instance_manager"] = {
   instance_id = nil,
   save_instance = function() end,
 }
 
 -- Stub workspace_state for save_workspace_full
-package.loaded["resurrect.workspace_state"] = {
+package.loaded["session.workspace_state"] = {
   get_workspace_state = function()
     return { workspace = "test", window_states = {} }
   end,
 }
 
 -- Stub utils so ensure_folder_exists is a no-op
-package.loaded["resurrect.utils"] = nil
+package.loaded["session.utils"] = nil
 local sep_for_stub = package.config:sub(1, 1)
-package.preload["resurrect.utils"] = function()
+package.preload["session.utils"] = function()
   return {
     is_windows = sep_for_stub == "\\",
     is_mac = false,
@@ -119,12 +119,12 @@ local search_paths = {
 
 package.path = table.concat(search_paths, ";") .. ";" .. package.path
 
-local state_manager = require("resurrect.state_manager")
+local state_manager = require("session.state_manager")
 
 local sep = is_windows() and "\\" or "/"
 local base = is_windows()
-  and ((os.getenv("TEMP") or os.getenv("TMP") or "C:\\Temp") .. "\\resurrect_sm_test")
-  or "/tmp/resurrect_sm_test"
+  and ((os.getenv("TEMP") or os.getenv("TMP") or "C:\\Temp") .. "\\session_sm_test")
+  or "/tmp/session_sm_test"
 
 -- get_file_path is a local function and cannot be called directly.
 -- These tests exercise it via load_state(), which passes its return value

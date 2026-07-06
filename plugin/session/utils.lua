@@ -97,7 +97,7 @@ end
 -- for the leaf state directories we own under AppData / ~/.claude. We do NOT
 -- probe ancestor directories (see ensure_folder_exists for why).
 local function dir_is_accessible(path)
-	local probe = path .. utils.separator .. ".resurrect_probe_" .. tostring({}):gsub("[^%w]", "")
+	local probe = path .. utils.separator .. ".session_probe_" .. tostring({}):gsub("[^%w]", "")
 	local f = io.open(probe, "w")
 	if f then
 		f:close()

@@ -109,7 +109,7 @@ end
 --- Merges user-supplied options with default options
 --- @param user_opts encryption_opts
 function pub.set_encryption(user_opts)
-	pub.encryption = require("resurrect.encryption")
+	pub.encryption = require("session.encryption")
 	for k, v in pairs(user_opts) do
 		if v ~= nil then
 			pub.encryption[k] = v
@@ -121,12 +121,12 @@ end
 --- @param data string
 --- @return string
 local function sanitize_json(data)
-	wezterm.emit("resurrect.file_io.sanitize_json.start", #data)
+	wezterm.emit("session.file_io.sanitize_json.start", #data)
 	-- escapes control characters to ensure valid json
 	data = data:gsub("[\x00-\x1F]", function(c)
 		return string.format("\\u00%02X", string.byte(c))
 	end)
-	wezterm.emit("resurrect.file_io.sanitize_json.finished")
+	wezterm.emit("session.file_io.sanitize_json.finished")
 	return data
 end
 
@@ -134,28 +134,28 @@ end
 ---@param state table
 ---@param event_type "workspace" | "window" | "tab"
 function pub.write_state(file_path, state, event_type)
-	wezterm.emit("resurrect.file_io.write_state.start", file_path, event_type)
+	wezterm.emit("session.file_io.write_state.start", file_path, event_type)
 	local json_state = wezterm.json_encode(state)
 	json_state = sanitize_json(json_state)
 	if pub.encryption.enable then
-		wezterm.emit("resurrect.file_io.encrypt.start", file_path)
+		wezterm.emit("session.file_io.encrypt.start", file_path)
 		local ok, err = pcall(function()
 			return pub.encryption.encrypt(file_path, json_state)
 		end)
 		if not ok then
-			wezterm.emit("resurrect.error", "Encryption failed: " .. tostring(err))
+			wezterm.emit("session.error", "Encryption failed: " .. tostring(err))
 			wezterm.log_error("Encryption failed: " .. tostring(err))
 		else
-			wezterm.emit("resurrect.file_io.encrypt.finished", file_path)
+			wezterm.emit("session.file_io.encrypt.finished", file_path)
 		end
 	else
 		local ok, err = pub.write_file(file_path, json_state)
 		if not ok then
-			wezterm.emit("resurrect.error", "Failed to write state: " .. err)
+			wezterm.emit("session.error", "Failed to write state: " .. err)
 			wezterm.log_error("Failed to write state: " .. err)
 		end
 	end
-	wezterm.emit("resurrect.file_io.write_state.finished", file_path, event_type)
+	wezterm.emit("session.file_io.write_state.finished", file_path, event_type)
 end
 
 ---@param file_path string
@@ -163,16 +163,16 @@ end
 function pub.load_json(file_path)
 	local json
 	if pub.encryption.enable then
-		wezterm.emit("resurrect.file_io.decrypt.start", file_path)
+		wezterm.emit("session.file_io.decrypt.start", file_path)
 		local ok, output = pcall(function()
 			return pub.encryption.decrypt(file_path)
 		end)
 		if not ok then
-			wezterm.emit("resurrect.error", "Decryption failed: " .. tostring(output))
+			wezterm.emit("session.error", "Decryption failed: " .. tostring(output))
 			wezterm.log_error("Decryption failed: " .. tostring(output))
 		else
 			json = output
-			wezterm.emit("resurrect.file_io.decrypt.finished", file_path)
+			wezterm.emit("session.file_io.decrypt.finished", file_path)
 		end
 	else
 		local ok, content = pub.read_file(file_path)

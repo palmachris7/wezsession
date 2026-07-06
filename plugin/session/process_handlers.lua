@@ -9,7 +9,7 @@
 --       get_restore_cmd = function(info, _) return "lazygit" end,
 --   })
 local wezterm = require("wezterm") --[[@as Wezterm]]
-local utils = require("resurrect.utils")
+local utils = require("session.utils")
 
 local pub = {}
 
@@ -25,7 +25,7 @@ pub.handlers = {}
 ---@param handler table { name: string, detect: function, get_restore_cmd: function, sanitize: function? }
 function pub.register(handler)
 	if not handler.name or not handler.detect or not handler.get_restore_cmd then
-		wezterm.log_error("resurrect: process_handler missing required fields (name, detect, get_restore_cmd)")
+		wezterm.log_error("session: process_handler missing required fields (name, detect, get_restore_cmd)")
 		return
 	end
 	table.insert(pub.handlers, handler)
@@ -73,7 +73,7 @@ function pub.sanitize_for_save(process_info, pane_id)
 	if handler and handler.sanitize then
 		local ok, err = pcall(handler.sanitize, process_info, pane_id)
 		if not ok then
-			wezterm.log_error("resurrect: process_handler sanitize failed: " .. tostring(err))
+			wezterm.log_error("session: process_handler sanitize failed: " .. tostring(err))
 		end
 	end
 	return process_info
@@ -151,7 +151,7 @@ function pub.read_pane_session(pane_id)
 	-- Validate pane_id is numeric to prevent path traversal
 	local id_str = tostring(pane_id)
 	if not id_str:match("^%d+$") then
-		wezterm.log_error("resurrect: read_pane_session rejected non-numeric pane_id: " .. id_str)
+		wezterm.log_error("session: read_pane_session rejected non-numeric pane_id: " .. id_str)
 		return nil
 	end
 	local home = os.getenv("HOME") or os.getenv("USERPROFILE")
@@ -216,7 +216,7 @@ pub.register({
 		-- Validate the name is actually a claude binary to prevent injection.
 		local bin = process_info.name or process_info.executable or "claude"
 		if not is_valid_claude_binary(bin) then
-			wezterm.log_warn("resurrect: rejected invalid claude binary name: " .. tostring(bin))
+			wezterm.log_warn("session: rejected invalid claude binary name: " .. tostring(bin))
 			bin = "claude"
 		end
 		local parts = { bin }
@@ -226,7 +226,7 @@ pub.register({
 			or parse_flag_value(argv, "--session-id")
 		-- Validate session ID is a hex/dash string (UUID format)
 		if session_id and not is_valid_session_id(session_id) then
-			wezterm.log_warn("resurrect: rejected invalid session_id: " .. tostring(session_id))
+			wezterm.log_warn("session: rejected invalid session_id: " .. tostring(session_id))
 			session_id = nil
 		end
 		if session_id then
@@ -254,7 +254,7 @@ pub.register({
 		if cwd and is_safe_cwd(cwd) then
 			cmd = "cd " .. wezterm.shell_join_args({ cwd }) .. "\r\n" .. cmd
 		elseif cwd then
-			wezterm.log_warn("resurrect: rejected unsafe CWD for Claude restore: " .. tostring(cwd))
+			wezterm.log_warn("session: rejected unsafe CWD for Claude restore: " .. tostring(cwd))
 		end
 
 		return cmd
@@ -300,7 +300,7 @@ pub.register({
 
 		-- Validate session ID format before embedding in argv
 		if session_id and not is_valid_session_id(session_id) then
-			wezterm.log_warn("resurrect: sanitize rejected invalid session_id: " .. tostring(session_id))
+			wezterm.log_warn("session: sanitize rejected invalid session_id: " .. tostring(session_id))
 			session_id = nil
 		end
 
@@ -337,7 +337,7 @@ local function configure_hook_in_settings(target_settings_path, pane_sessions_di
 			if ok and parsed then
 				settings = parsed
 			else
-				wezterm.log_warn("resurrect: could not parse " .. target_settings_path .. ", will add hooks to fresh object")
+				wezterm.log_warn("session: could not parse " .. target_settings_path .. ", will add hooks to fresh object")
 			end
 		end
 	end
@@ -387,7 +387,7 @@ local function configure_hook_in_settings(target_settings_path, pane_sessions_di
 		.. 'pane_id="${WEZTERM_PANE:-unknown}"; '
 		.. 'if [[ "$pane_id" =~ ^[0-9]+$ ]]; then '
 		.. 'cat > "' .. safe_dir .. '/${pane_id}.json"; '
-		.. "else echo \"resurrect: invalid WEZTERM_PANE: $pane_id\" >&2; cat > /dev/null; fi'"
+		.. "else echo \"session: invalid WEZTERM_PANE: $pane_id\" >&2; cat > /dev/null; fi'"
 
 	local hook_entry = {
 		matcher = "",
@@ -423,14 +423,14 @@ local function configure_hook_in_settings(target_settings_path, pane_sessions_di
 	local json_str = wezterm.json_encode(settings)
 	local wf = io.open(target_settings_path, "w")
 	if not wf then
-		wezterm.log_error("resurrect: cannot write Claude settings to " .. target_settings_path)
+		wezterm.log_error("session: cannot write Claude settings to " .. target_settings_path)
 		return false
 	end
 	wf:write(json_str)
 	wf:flush()
 	wf:close()
 
-	wezterm.log_info("resurrect: Claude Code hooks configured at " .. target_settings_path)
+	wezterm.log_info("session: Claude Code hooks configured at " .. target_settings_path)
 	return true
 end
 
@@ -457,7 +457,7 @@ end
 function pub.setup_claude_session_hooks(settings_path)
 	local home = os.getenv("HOME") or os.getenv("USERPROFILE")
 	if not home then
-		wezterm.log_error("resurrect: cannot determine home directory for Claude hook setup")
+		wezterm.log_error("session: cannot determine home directory for Claude hook setup")
 		return false
 	end
 
@@ -467,7 +467,7 @@ function pub.setup_claude_session_hooks(settings_path)
 
 	-- Ensure pane-sessions directory exists.
 	if not utils.ensure_folder_exists(pane_sessions_dir) then
-		wezterm.log_error("resurrect: failed to create pane-sessions directory: " .. pane_sessions_dir)
+		wezterm.log_error("session: failed to create pane-sessions directory: " .. pane_sessions_dir)
 		return false
 	end
 

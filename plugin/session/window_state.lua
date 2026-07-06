@@ -1,6 +1,6 @@
 local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
-local tab_state_mod = require("resurrect.tab_state")
-local state_manager_mod = require("resurrect.state_manager")
+local tab_state_mod = require("session.tab_state")
+local state_manager_mod = require("session.state_manager")
 local pub = {}
 
 
@@ -45,7 +45,7 @@ end
 ---@param window_state window_state
 ---@param opts? restore_opts
 function pub.restore_window(window, window_state, opts)
-	wezterm.emit("resurrect.window_state.restore_window.start")
+	wezterm.emit("session.window_state.restore_window.start")
 	if opts == nil then
 		opts = {}
 	end
@@ -84,7 +84,7 @@ function pub.restore_window(window, window_state, opts)
 	if active_tab then
 		active_tab:activate()
 	end
-	wezterm.emit("resurrect.window_state.restore_window.finished")
+	wezterm.emit("session.window_state.restore_window.finished")
 end
 
 function pub.save_window_action()

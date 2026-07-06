@@ -23,17 +23,17 @@ local function init()
 		end
 	end
 
-	local sep = require("resurrect.utils").separator
-	require("resurrect.state_manager").change_state_save_dir(plugin_path .. sep .. "state" .. sep)
+	local sep = require("session.utils").separator
+	require("session.state_manager").change_state_save_dir(plugin_path .. sep .. "state" .. sep)
 
 	-- Export submodules
-	pub.workspace_state = require("resurrect.workspace_state")
-	pub.window_state = require("resurrect.window_state")
-	pub.tab_state = require("resurrect.tab_state")
-	pub.fuzzy_loader = require("resurrect.fuzzy_loader")
-	pub.state_manager = require("resurrect.state_manager")
-	pub.process_handlers = require("resurrect.process_handlers")
-	pub.instance_manager = require("resurrect.instance_manager")
+	pub.workspace_state = require("session.workspace_state")
+	pub.window_state = require("session.window_state")
+	pub.tab_state = require("session.tab_state")
+	pub.fuzzy_loader = require("session.fuzzy_loader")
+	pub.state_manager = require("session.state_manager")
+	pub.process_handlers = require("session.process_handlers")
+	pub.instance_manager = require("session.instance_manager")
 end
 
 init()
@@ -106,7 +106,7 @@ function pub.setup(config, opts)
 		local save_timer = nil
 
 		-- Listen to all save-finished events for status bar updates
-		wezterm.on("resurrect.state_manager.event_driven_save.finished", function()
+		wezterm.on("session.state_manager.event_driven_save.finished", function()
 			last_save_time = os.date("%H:%M:%S")
 			if save_timer then save_timer:cancel() end
 			save_timer = wezterm.time.call_after(4, function()
@@ -114,7 +114,7 @@ function pub.setup(config, opts)
 			end)
 		end)
 
-		wezterm.on("resurrect.state_manager.periodic_save.finished", function()
+		wezterm.on("session.state_manager.periodic_save.finished", function()
 			last_save_time = os.date("%H:%M:%S")
 			if save_timer then save_timer:cancel() end
 			save_timer = wezterm.time.call_after(4, function()
@@ -122,7 +122,7 @@ function pub.setup(config, opts)
 			end)
 		end)
 
-		wezterm.on("resurrect.save.finished", function()
+		wezterm.on("session.save.finished", function()
 			last_save_time = os.date("%H:%M:%S")
 			if save_timer then save_timer:cancel() end
 			save_timer = wezterm.time.call_after(4, function()
@@ -209,7 +209,7 @@ function pub.setup(config, opts)
 			mods = "ALT",
 			action = wezterm.action_callback(function(win, pane)
 				pub.state_manager.save_workspace_full()
-				wezterm.emit("resurrect.save.finished")
+				wezterm.emit("session.save.finished")
 			end),
 		})
 

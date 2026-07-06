@@ -1,6 +1,6 @@
 local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
-local file_io = require("resurrect.file_io")
-local utils = require("resurrect.utils")
+local file_io = require("session.file_io")
+local utils = require("session.utils")
 
 local pub = {}
 
@@ -141,11 +141,11 @@ end
 --- Single entry point for the complete save operation, used by periodic_save,
 --- event_driven_save, and the Alt+S keybinding to avoid duplication.
 function pub.save_workspace_full()
-	local workspace_state = require("resurrect.workspace_state").get_workspace_state()
+	local workspace_state = require("session.workspace_state").get_workspace_state()
 	pub.save_state(workspace_state)
 
 	-- Save per-instance state if instance manager is active
-	local im = require("resurrect.instance_manager")
+	local im = require("session.instance_manager")
 	if im.instance_id then
 		im.save_instance(workspace_state)
 	end
@@ -156,13 +156,13 @@ end
 ---@param type string
 ---@return table
 function pub.load_state(name, type)
-	wezterm.emit("resurrect.state_manager.load_state.start", name, type)
+	wezterm.emit("session.state_manager.load_state.start", name, type)
 	local json = file_io.load_json(get_file_path(name, type))
 	if not json then
-		wezterm.emit("resurrect.error", "Invalid json: " .. get_file_path(name, type))
+		wezterm.emit("session.error", "Invalid json: " .. get_file_path(name, type))
 		return {}
 	end
-	wezterm.emit("resurrect.state_manager.load_state.finished", name, type)
+	wezterm.emit("session.state_manager.load_state.finished", name, type)
 	return json
 end
 
@@ -177,7 +177,7 @@ function pub.periodic_save(opts)
 	end
 	wezterm.time.call_after(opts.interval_seconds, function()
 		local ok, err = pcall(function()
-			wezterm.emit("resurrect.state_manager.periodic_save.start", opts)
+			wezterm.emit("session.state_manager.periodic_save.start", opts)
 			if opts.save_workspaces then
 				pub.save_workspace_full()
 			end
@@ -187,7 +187,7 @@ function pub.periodic_save(opts)
 					local mux_win = gui_win:mux_window()
 					local title = mux_win:get_title()
 					if title and title ~= "" then
-						pub.save_state(require("resurrect.window_state").get_window_state(mux_win))
+						pub.save_state(require("session.window_state").get_window_state(mux_win))
 					end
 				end
 			end
@@ -198,17 +198,17 @@ function pub.periodic_save(opts)
 					for _, mux_tab in ipairs(mux_win:tabs()) do
 						local title = mux_tab:get_title()
 						if title and title ~= "" then
-							pub.save_state(require("resurrect.tab_state").get_tab_state(mux_tab))
+							pub.save_state(require("session.tab_state").get_tab_state(mux_tab))
 						end
 					end
 				end
 			end
 
-			wezterm.emit("resurrect.state_manager.periodic_save.finished", opts)
+			wezterm.emit("session.state_manager.periodic_save.finished", opts)
 		end)
 		if not ok then
-			wezterm.log_error("resurrect: periodic_save failed: " .. tostring(err))
-			wezterm.emit("resurrect.error", "periodic_save failed: " .. tostring(err))
+			wezterm.log_error("session: periodic_save failed: " .. tostring(err))
+			wezterm.emit("session.error", "periodic_save failed: " .. tostring(err))
 		end
 		-- Always re-schedule, even after errors
 		pub.periodic_save(opts)
@@ -220,7 +220,7 @@ end
 local _event_driven_save_registered = false
 function pub.event_driven_save(opts)
 	if _event_driven_save_registered then
-		wezterm.log_info("resurrect: event_driven_save already registered, skipping")
+		wezterm.log_info("session: event_driven_save already registered, skipping")
 		return
 	end
 	_event_driven_save_registered = true
@@ -233,7 +233,7 @@ function pub.event_driven_save(opts)
 	local last_structure = {}
 
 	local function do_save(window)
-		wezterm.emit("resurrect.state_manager.event_driven_save.start", opts)
+		wezterm.emit("session.state_manager.event_driven_save.start", opts)
 
 		if opts.save_workspaces then
 			pub.save_workspace_full()
@@ -243,7 +243,7 @@ function pub.event_driven_save(opts)
 			local mux_win = window:mux_window()
 			local title = mux_win:get_title()
 			if title ~= "" and title ~= nil then
-				pub.save_state(require("resurrect.window_state").get_window_state(mux_win))
+				pub.save_state(require("session.window_state").get_window_state(mux_win))
 			end
 		end
 
@@ -252,12 +252,12 @@ function pub.event_driven_save(opts)
 			for _, mux_tab in ipairs(mux_win:tabs()) do
 				local title = mux_tab:get_title()
 				if title ~= "" and title ~= nil then
-					pub.save_state(require("resurrect.tab_state").get_tab_state(mux_tab))
+					pub.save_state(require("session.tab_state").get_tab_state(mux_tab))
 				end
 			end
 		end
 
-		wezterm.emit("resurrect.state_manager.event_driven_save.finished", opts)
+		wezterm.emit("session.state_manager.event_driven_save.finished", opts)
 	end
 
 	-- Save shortly after startup using update-status, which fires reliably
@@ -304,7 +304,7 @@ function pub.write_current_state(name, type)
 	local file_path = pub.save_state_dir .. utils.separator .. "current_state"
 	local handle = io.open(file_path, "w")
 	if not handle then
-		wezterm.log_error("resurrect: could not open current_state for writing: " .. file_path)
+		wezterm.log_error("session: could not open current_state for writing: " .. file_path)
 		return false, "could not open file"
 	end
 	handle:write(string.format("%s\n%s", name, type))
@@ -316,7 +316,7 @@ end
 ---callback for resurrecting workspaces on startup
 ---@return boolean
 ---@return string|nil
-function pub.resurrect_on_gui_startup()
+function pub.restore_on_startup()
 	local file_path = pub.save_state_dir .. utils.separator .. "current_state"
 	local suc, err = pcall(function()
 		local file = io.open(file_path, "r")
@@ -327,58 +327,58 @@ function pub.resurrect_on_gui_startup()
 		local state_type = file:read("*line")
 		file:close()
 		if state_type == "workspace" then
-			require("resurrect.workspace_state").restore_workspace(pub.load_state(name, state_type), {
+			require("session.workspace_state").restore_workspace(pub.load_state(name, state_type), {
 				spawn_in_workspace = true,
 				relative = true,
 				restore_text = true,
-				on_pane_restore = require("resurrect.tab_state").default_on_pane_restore,
+				on_pane_restore = require("session.tab_state").default_on_pane_restore,
 			})
 			wezterm.mux.set_active_workspace(name)
 		end
 	end)
 	if not suc then
-		wezterm.log_error("resurrect: gui_startup restore failed: " .. tostring(err))
-		wezterm.emit("resurrect.error", "gui_startup restore failed: " .. tostring(err))
+		wezterm.log_error("session: gui_startup restore failed: " .. tostring(err))
+		wezterm.emit("session.error", "gui_startup restore failed: " .. tostring(err))
 	end
 	return suc, err
 end
 
 ---@param file_path string
 function pub.delete_state(file_path)
-	wezterm.emit("resurrect.state_manager.delete_state.start", file_path)
+	wezterm.emit("session.state_manager.delete_state.start", file_path)
 	-- Path confinement: reject traversal attempts, absolute paths, and
 	-- non-JSON files to prevent arbitrary file deletion.
 	if file_path:find("%.%.") then
-		wezterm.log_error("resurrect: delete_state rejected path with '..': " .. file_path)
-		wezterm.emit("resurrect.error", "Invalid path: directory traversal not allowed")
+		wezterm.log_error("session: delete_state rejected path with '..': " .. file_path)
+		wezterm.emit("session.error", "Invalid path: directory traversal not allowed")
 		return
 	end
 	-- Reject absolute paths (Unix /... or Windows C:\...)
 	if file_path:match("^[/\\]") or file_path:match("^%a:") then
-		wezterm.log_error("resurrect: delete_state rejected absolute path: " .. file_path)
-		wezterm.emit("resurrect.error", "Invalid path: absolute paths not allowed")
+		wezterm.log_error("session: delete_state rejected absolute path: " .. file_path)
+		wezterm.emit("session.error", "Invalid path: absolute paths not allowed")
 		return
 	end
 	-- Only allow deleting .json state files
 	if not file_path:match("%.json$") then
-		wezterm.log_error("resurrect: delete_state rejected non-JSON path: " .. file_path)
-		wezterm.emit("resurrect.error", "Invalid path: only .json files can be deleted")
+		wezterm.log_error("session: delete_state rejected non-JSON path: " .. file_path)
+		wezterm.emit("session.error", "Invalid path: only .json files can be deleted")
 		return
 	end
 	-- Use explicit separator to avoid path join fragility
 	local path = pub.save_state_dir .. utils.separator .. file_path
 	local success = os.remove(path)
 	if not success then
-		wezterm.emit("resurrect.error", "Failed to delete state: " .. path)
+		wezterm.emit("session.error", "Failed to delete state: " .. path)
 		wezterm.log_error("Failed to delete state: " .. path)
 	end
-	wezterm.emit("resurrect.state_manager.delete_state.finished", file_path)
+	wezterm.emit("session.state_manager.delete_state.finished", file_path)
 end
 
 --- Merges user-supplied options with default options
 --- @param user_opts encryption_opts
 function pub.set_encryption(user_opts)
-	require("resurrect.file_io").set_encryption(user_opts)
+	require("session.file_io").set_encryption(user_opts)
 end
 
 ---Changes the directory to save the state to
@@ -392,7 +392,7 @@ function pub.change_state_save_dir(directory)
 end
 
 function pub.set_max_nlines(max_nlines)
-	require("resurrect.pane_tree").max_nlines = max_nlines
+	require("session.pane_tree").max_nlines = max_nlines
 end
 
 -- Expose internals for unit testing only

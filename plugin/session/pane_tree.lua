@@ -1,6 +1,6 @@
 local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
-local utils = require("resurrect.utils")
-local process_handlers = require("resurrect.process_handlers")
+local utils = require("session.utils")
+local process_handlers = require("session.process_handlers")
 
 ---@class pane_tree_module
 ---@field max_nlines integer
@@ -82,7 +82,7 @@ local function insert_panes(root, panes, depth)
 		return nil
 	end
 	if depth > MAX_PANE_DEPTH then
-		wezterm.log_error("resurrect: pane tree exceeds maximum depth of " .. MAX_PANE_DEPTH)
+		wezterm.log_error("session: pane tree exceeds maximum depth of " .. MAX_PANE_DEPTH)
 		return root
 	end
 
@@ -96,7 +96,7 @@ local function insert_panes(root, panes, depth)
 	local domain = root.pane:get_domain_name()
 	if not wezterm.mux.get_domain(domain):is_spawnable() then
 		wezterm.log_warn("Domain " .. domain .. " is not spawnable")
-		wezterm.emit("resurrect.error", "Domain " .. domain .. " is not spawnable")
+		wezterm.emit("session.error", "Domain " .. domain .. " is not spawnable")
 	else
 		root.domain = domain
 

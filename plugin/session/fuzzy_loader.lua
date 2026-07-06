@@ -1,6 +1,6 @@
 local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
-local utils = require("resurrect.utils")
-local file_io = require("resurrect.file_io")
+local utils = require("session.utils")
+local file_io = require("session.file_io")
 local pub = {}
 
 ---@alias fmt_fun fun(label: string): string
@@ -96,7 +96,7 @@ local function find_json_files_recursive(base_path)
 	if success then
 		return stdout
 	else
-		wezterm.emit("resurrect.error", stderr or "Failed to list state files")
+		wezterm.emit("session.error", stderr or "Failed to list state files")
 		return nil
 	end
 end
@@ -267,11 +267,11 @@ end
 ---@param callback fun(id: string, label: string, save_state_dir: string)
 ---@param opts fuzzy_load_opts?
 function pub.fuzzy_load(window, pane, callback, opts)
-	wezterm.emit("resurrect.fuzzy_loader.fuzzy_load.start", window, pane)
+	wezterm.emit("session.fuzzy_loader.fuzzy_load.start", window, pane)
 
 	opts = utils.tbl_deep_extend("force", pub.default_fuzzy_load_opts, opts or {})
 
-	local folder = require("resurrect.state_manager").save_state_dir
+	local folder = require("session.state_manager").save_state_dir
 
 	-- Always use the recursive search function
 	local stdout = find_json_files_recursive(folder)
@@ -280,7 +280,7 @@ function pub.fuzzy_load(window, pane, callback, opts)
 	local state_files = insert_choices(stdout, opts)
 
 	if #state_files == 0 then
-		wezterm.emit("resurrect.error", "No existing state files to select")
+		wezterm.emit("session.error", "No existing state files to select")
 	end
 
 	-- even if the list is empty, user experience is better if we show an empty list
@@ -288,9 +288,9 @@ function pub.fuzzy_load(window, pane, callback, opts)
 		wezterm.action.InputSelector({
 			action = wezterm.action_callback(function(_, _, id, label)
 				if id and label then
-					callback(id, label, require("resurrect.state_manager").save_state_dir)
+					callback(id, label, require("session.state_manager").save_state_dir)
 				end
-				wezterm.emit("resurrect.fuzzy_loader.fuzzy_load.finished", window, pane)
+				wezterm.emit("session.fuzzy_loader.fuzzy_load.finished", window, pane)
 			end),
 			title = opts.title,
 			description = opts.description,

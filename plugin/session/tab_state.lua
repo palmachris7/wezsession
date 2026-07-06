@@ -1,8 +1,8 @@
 local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
-local pane_tree_mod = require("resurrect.pane_tree")
-local state_manager_mod = require("resurrect.state_manager")
-local process_handlers = require("resurrect.process_handlers")
-local utils = require("resurrect.utils")
+local pane_tree_mod = require("session.pane_tree")
+local state_manager_mod = require("session.state_manager")
+local process_handlers = require("session.process_handlers")
+local utils = require("session.utils")
 local pub = {}
 
 -- Use shared CWD validation from utils to prevent command injection
@@ -101,7 +101,7 @@ end
 ---@param tab_state tab_state
 ---@param opts restore_opts
 function pub.restore_tab(tab, tab_state, opts)
-	wezterm.emit("resurrect.tab_state.restore_tab.start")
+	wezterm.emit("session.tab_state.restore_tab.start")
 	if opts.pane then
 		tab_state.pane_tree.pane = opts.pane
 		-- Set the CWD of the reused pane to match saved state.
@@ -110,7 +110,7 @@ function pub.restore_tab(tab, tab_state, opts)
 		if is_safe_cwd(tab_state.pane_tree.cwd) then
 			opts.pane:send_text("cd " .. wezterm.shell_join_args({ tab_state.pane_tree.cwd }) .. "\r\n")
 		elseif tab_state.pane_tree.cwd and tab_state.pane_tree.cwd ~= "" then
-			wezterm.log_error("resurrect: rejected suspicious CWD: " .. tab_state.pane_tree.cwd)
+			wezterm.log_error("session: rejected suspicious CWD: " .. tab_state.pane_tree.cwd)
 		end
 	else
 		local split_args = { cwd = tab_state.pane_tree.cwd }
@@ -133,7 +133,7 @@ function pub.restore_tab(tab, tab_state, opts)
 	if acc.active_pane then
 		acc.active_pane:activate()
 	end
-	wezterm.emit("resurrect.tab_state.restore_tab.finished")
+	wezterm.emit("session.tab_state.restore_tab.finished")
 end
 
 function pub.save_tab_action()
@@ -199,7 +199,7 @@ function pub.default_on_pane_restore(pane_tree)
 				restore_cmd = wezterm.shell_join_args(pane_tree.process.argv)
 			else
 				wezterm.log_warn(
-					"resurrect: skipping restore of unrecognized process: " .. base_name
+					"session: skipping restore of unrecognized process: " .. base_name
 						.. " (add to SAFE_RESTORE_PROCESSES or register a process_handler)"
 				)
 			end

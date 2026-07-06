@@ -8,8 +8,8 @@
 -- focused on named workspace/window/tab saves.
 
 local wezterm = require("wezterm") --[[@as Wezterm]]
-local file_io = require("resurrect.file_io")
-local utils = require("resurrect.utils")
+local file_io = require("session.file_io")
+local utils = require("session.utils")
 
 local pub = {}
 
@@ -27,7 +27,7 @@ pub.auto_restore_prompt = true
 local _state_manager = nil
 local function get_state_manager()
 	if not _state_manager then
-		_state_manager = require("resurrect.state_manager")
+		_state_manager = require("session.state_manager")
 	end
 	return _state_manager
 end
@@ -136,7 +136,7 @@ local function write_meta(instance_id, meta)
 	local json = wezterm.json_encode(meta)
 	local ok, err = file_io.write_file(path, json)
 	if not ok then
-		wezterm.log_error("resurrect: failed to write instance meta: " .. tostring(err))
+		wezterm.log_error("session: failed to write instance meta: " .. tostring(err))
 	end
 end
 
@@ -309,8 +309,8 @@ function pub.save_instance(workspace_state)
 	local json = wezterm.json_encode(instance_state)
 	local ok, err = file_io.write_file(state_path(pub.instance_id), json)
 	if not ok then
-		wezterm.log_error("resurrect: failed to write instance state: " .. tostring(err))
-		wezterm.emit("resurrect.error", "Failed to save instance state: " .. tostring(err))
+		wezterm.log_error("session: failed to write instance state: " .. tostring(err))
+		wezterm.emit("session.error", "Failed to save instance state: " .. tostring(err))
 		return
 	end
 
@@ -330,7 +330,7 @@ function pub.save_instance(workspace_state)
 	}
 	write_meta(pub.instance_id, meta)
 
-	wezterm.emit("resurrect.instance_manager.save_instance.finished", pub.instance_id)
+	wezterm.emit("session.instance_manager.save_instance.finished", pub.instance_id)
 end
 
 --- Load an instance's workspace state from disk.
@@ -340,28 +340,28 @@ end
 ---@return table|nil
 function pub.load_instance(instance_id)
 	if not is_valid_instance_id(instance_id) then
-		wezterm.log_error("resurrect: load_instance rejected invalid ID: " .. tostring(instance_id))
-		wezterm.emit("resurrect.error", "Invalid instance ID")
+		wezterm.log_error("session: load_instance rejected invalid ID: " .. tostring(instance_id))
+		wezterm.emit("session.error", "Invalid instance ID")
 		return nil
 	end
 
 	local path = state_path(instance_id)
 	local ok, content = file_io.read_file(path)
 	if not ok or not content then
-		wezterm.log_error("resurrect: could not read instance state: " .. path)
+		wezterm.log_error("session: could not read instance state: " .. path)
 		return nil
 	end
 
 	local success, parsed = pcall(wezterm.json_parse, content)
 	if not success or not parsed then
-		wezterm.log_error("resurrect: invalid JSON in instance state: " .. path)
+		wezterm.log_error("session: invalid JSON in instance state: " .. path)
 		return nil
 	end
 
 	-- Schema validation: workspace_state must be a table with window_states
 	local ws = parsed.workspace_state
 	if type(ws) ~= "table" or type(ws.window_states) ~= "table" then
-		wezterm.log_error("resurrect: malformed instance state (missing workspace_state.window_states): " .. path)
+		wezterm.log_error("session: malformed instance state (missing workspace_state.window_states): " .. path)
 		return nil
 	end
 
@@ -431,8 +431,8 @@ end
 ---@return boolean
 function pub.delete_instance(instance_id)
 	if not is_valid_instance_id(instance_id) then
-		wezterm.log_error("resurrect: delete_instance rejected invalid ID: " .. tostring(instance_id))
-		wezterm.emit("resurrect.error", "Invalid instance ID: path traversal rejected")
+		wezterm.log_error("session: delete_instance rejected invalid ID: " .. tostring(instance_id))
+		wezterm.emit("session.error", "Invalid instance ID: path traversal rejected")
 		return false
 	end
 
@@ -442,8 +442,8 @@ function pub.delete_instance(instance_id)
 	os.remove(json_path)
 	os.remove(meta_file)
 
-	wezterm.log_info("resurrect: deleted instance " .. instance_id)
-	wezterm.emit("resurrect.instance_manager.delete_instance.finished", instance_id)
+	wezterm.log_info("session: deleted instance " .. instance_id)
+	wezterm.emit("session.instance_manager.delete_instance.finished", instance_id)
 	return true
 end
 
@@ -471,8 +471,8 @@ end
 ---@return boolean
 function pub.tombstone_instance(instance_id)
 	if not is_valid_instance_id(instance_id) then
-		wezterm.log_error("resurrect: tombstone_instance rejected invalid ID: " .. tostring(instance_id))
-		wezterm.emit("resurrect.error", "Invalid instance ID")
+		wezterm.log_error("session: tombstone_instance rejected invalid ID: " .. tostring(instance_id))
+		wezterm.emit("session.error", "Invalid instance ID")
 		return false
 	end
 
@@ -486,8 +486,8 @@ function pub.tombstone_instance(instance_id)
 	file_io.move_file(json_src, json_dst)
 	file_io.move_file(meta_src, meta_dst)
 
-	wezterm.log_info("resurrect: tombstoned instance " .. instance_id)
-	wezterm.emit("resurrect.instance_manager.tombstone_instance.finished", instance_id)
+	wezterm.log_info("session: tombstoned instance " .. instance_id)
+	wezterm.emit("session.instance_manager.tombstone_instance.finished", instance_id)
 	return true
 end
 
@@ -539,7 +539,7 @@ function pub.cleanup_old_tombstones(cutoff)
 		if last_save_epoch < cutoff then
 			os.remove(dir .. utils.separator .. id .. ".json")
 			os.remove(meta_p)
-			wezterm.log_info("resurrect: pruned tombstoned instance " .. id)
+			wezterm.log_info("session: pruned tombstoned instance " .. id)
 		end
 	end
 end
@@ -662,13 +662,13 @@ local function make_fuzzy_restore_callback(restore_opts, fallback_pane)
 		local sm = get_state_manager()
 		if state_type == "workspace" then
 			local state = sm.load_state(name, "workspace")
-			require("resurrect.workspace_state").restore_workspace(state, restore_opts)
+			require("session.workspace_state").restore_workspace(state, restore_opts)
 		elseif state_type == "window" then
 			local state = sm.load_state(name, "window")
-			require("resurrect.window_state").restore_window(fallback_pane:window(), state, restore_opts)
+			require("session.window_state").restore_window(fallback_pane:window(), state, restore_opts)
 		elseif state_type == "tab" then
 			local state = sm.load_state(name, "tab")
-			require("resurrect.tab_state").restore_tab(fallback_pane:tab(), state, restore_opts)
+			require("session.tab_state").restore_tab(fallback_pane:tab(), state, restore_opts)
 		end
 	end
 end
@@ -696,7 +696,7 @@ local function restore_instances(instance_ids, window, pane, restore_opts)
 				opts.pane = pane
 			end
 
-			require("resurrect.workspace_state").restore_workspace(workspace_state, opts)
+			require("session.workspace_state").restore_workspace(workspace_state, opts)
 
 			-- Carry over display_name from first restored instance
 			if i == 1 and old_meta and old_meta.display_name and old_meta.display_name ~= "" then
@@ -722,7 +722,7 @@ function pub.show_instance_selector(window, pane, restore_opts)
 
 	-- If no instances, fall through to fuzzy_load for named saves
 	if #instances == 0 then
-		local fuzzy_loader = require("resurrect.fuzzy_loader")
+		local fuzzy_loader = require("session.fuzzy_loader")
 		fuzzy_loader.fuzzy_load(window, pane, make_fuzzy_restore_callback(restore_opts, pane))
 		return
 	end
@@ -879,7 +879,7 @@ function pub.auto_restore_on_startup()
 
 	if #instances == 0 then
 		-- Backward compat: fall back to current_state mechanism
-		get_state_manager().resurrect_on_gui_startup()
+		get_state_manager().restore_on_startup()
 		return
 	end
 
@@ -901,7 +901,7 @@ function pub.auto_restore_on_startup()
 			local restore_opts = {
 				relative = true,
 				restore_text = true,
-				on_pane_restore = require("resurrect.tab_state").default_on_pane_restore,
+				on_pane_restore = require("session.tab_state").default_on_pane_restore,
 			}
 			pub.show_instance_selector(gui_win, active_pane, restore_opts)
 		end
