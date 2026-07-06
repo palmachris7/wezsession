@@ -118,7 +118,6 @@ local function insert_panes(root, panes, depth)
 		if domain == "local" then
 			-- pane:inject_output() is unavailable for non-local domains,
 			-- only saving local scrollback because it would slow down the process
-			-- See: https://github.com/MLFlexer/resurrect.wezterm/issues/41
 			root.alt_screen_active = root.pane:is_alt_screen_active()
 
 			local process_info = root.pane:get_foreground_process_info()
