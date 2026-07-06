@@ -1,0 +1,227 @@
+local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
+local pane_tree_mod = require("resurrect.pane_tree")
+local state_manager_mod = require("resurrect.state_manager")
+local process_handlers = require("resurrect.process_handlers")
+local utils = require("resurrect.utils")
+local pub = {}
+
+-- Use shared CWD validation from utils to prevent command injection
+-- when sending cd commands via send_text().
+local is_safe_cwd = utils.is_safe_cwd
+
+---Function used to split panes when mapping over the pane_tree
+---@param opts restore_opts
+---@return fun(acc: {active_pane: Pane, is_zoomed: boolean}, pane_tree: pane_tree): {active_pane: Pane, is_zoomed: boolean}
+local function make_splits(opts)
+	if opts == nil then
+		opts = {}
+	end
+
+	return function(acc, pane_tree)
+		local pane = pane_tree.pane
+
+		if opts.on_pane_restore then
+			opts.on_pane_restore(pane_tree)
+		end
+
+		local bottom = pane_tree.bottom
+		if bottom then
+			local split_args = { direction = "Bottom", cwd = bottom.cwd }
+			if opts.relative then
+				split_args.size = bottom.height / (pane_tree.height + bottom.height)
+			elseif opts.absolute then
+				split_args.size = bottom.height
+			end
+
+			bottom.pane = pane:split(split_args)
+		end
+
+		local right = pane_tree.right
+		if right then
+			local split_args = { direction = "Right", cwd = right.cwd }
+			if opts.relative then
+				split_args.size = right.width / (pane_tree.width + right.width)
+			elseif opts.absolute then
+				split_args.size = right.width
+			end
+
+			right.pane = pane:split(split_args)
+		end
+
+		if pane_tree.is_active then
+			acc.active_pane = pane_tree.pane
+		end
+
+		if pane_tree.is_zoomed then
+			acc.is_zoomed = true
+		end
+
+		return acc
+	end
+end
+
+---creates and returns the state of the tab
+---@param tab MuxTab
+---@return tab_state
+function pub.get_tab_state(tab)
+	local panes = tab:panes_with_info()
+
+	local function is_zoomed()
+		for _, pane in ipairs(panes) do
+			if pane.is_zoomed then
+				return true
+			end
+		end
+		return false
+	end
+
+	local tab_state = {
+		title = tab:get_title(),
+		is_zoomed = is_zoomed(),
+		pane_tree = pane_tree_mod.create_pane_tree(panes),
+	}
+
+	return tab_state
+end
+
+---Force closes all other tabs in the window but one
+---@param tab MuxTab
+---@param pane_to_keep Pane
+local function close_all_other_panes(tab, pane_to_keep)
+	for _, pane in ipairs(tab:panes()) do
+		if pane:pane_id() ~= pane_to_keep:pane_id() then
+			pane:activate()
+			tab:window():gui_window():perform_action(wezterm.action.CloseCurrentPane({ confirm = false }), pane)
+		end
+	end
+end
+
+---restore a tab
+---@param tab MuxTab
+---@param tab_state tab_state
+---@param opts restore_opts
+function pub.restore_tab(tab, tab_state, opts)
+	wezterm.emit("resurrect.tab_state.restore_tab.start")
+	if opts.pane then
+		tab_state.pane_tree.pane = opts.pane
+		-- Set the CWD of the reused pane to match saved state.
+		-- Validate the CWD contains no shell metacharacters to prevent
+		-- command injection via tampered state files.
+		if is_safe_cwd(tab_state.pane_tree.cwd) then
+			opts.pane:send_text("cd " .. wezterm.shell_join_args({ tab_state.pane_tree.cwd }) .. "\r\n")
+		elseif tab_state.pane_tree.cwd and tab_state.pane_tree.cwd ~= "" then
+			wezterm.log_error("resurrect: rejected suspicious CWD: " .. tab_state.pane_tree.cwd)
+		end
+	else
+		local split_args = { cwd = tab_state.pane_tree.cwd }
+		if tab_state.pane_tree.domain then
+			split_args.domain = { DomainName = tab_state.pane_tree.domain }
+		end
+		local new_pane = tab:active_pane():split(split_args)
+		tab_state.pane_tree.pane = new_pane
+	end
+
+	if opts.close_open_panes then
+		close_all_other_panes(tab, tab_state.pane_tree.pane)
+	end
+
+	if tab_state.title then
+		tab:set_title(tab_state.title)
+	end
+
+	local acc = pane_tree_mod.fold(tab_state.pane_tree, { is_zoomed = false }, make_splits(opts))
+	if acc.active_pane then
+		acc.active_pane:activate()
+	end
+	wezterm.emit("resurrect.tab_state.restore_tab.finished")
+end
+
+function pub.save_tab_action()
+	return wezterm.action_callback(function(win, pane)
+		local tab = pane:tab()
+		if tab:get_title() == "" then
+			win:perform_action(
+				wezterm.action.PromptInputLine({
+					description = "Enter new tab title",
+					action = wezterm.action_callback(function(_, callback_pane, title)
+						if title then
+							callback_pane:tab():set_title(title)
+							local state = pub.get_tab_state(tab)
+							state_manager_mod.save_state(state)
+						end
+					end),
+				}),
+				pane
+			)
+		elseif tab:get_title() then
+			local state = pub.get_tab_state(tab)
+			state_manager_mod.save_state(state)
+		end
+	end)
+end
+
+-- Known safe executables that can be restored via send_text.
+-- Process names not in this set will be logged but not auto-launched,
+-- preventing arbitrary command execution from tampered state files.
+local SAFE_RESTORE_PROCESSES = {
+	vim = true, nvim = true, gvim = true, vi = true,
+	htop = true, btop = true, top = true,
+	less = true, more = true, man = true,
+	claude = true,
+	nano = true,
+	tmux = true, screen = true,
+}
+
+-- Delay in seconds before sending process restore commands.
+-- Shell interpreters (especially PowerShell on Windows) need time to initialize
+-- before they can accept input. Without this delay, commands sent during
+-- gui-startup get swallowed by the shell's init sequence.
+pub.process_restore_delay_seconds = 3
+
+--- Function to restore text or processes when restoring panes
+---@param pane_tree pane_tree
+function pub.default_on_pane_restore(pane_tree)
+	local pane = pane_tree.pane
+
+	-- Spawn process if process info was saved (alt screen OR registered handler),
+	-- otherwise restore scrollback text. Some TUI apps (e.g., Claude Code) don't
+	-- use the alt screen buffer but still need process-based restoration.
+	if pane_tree.process and pane_tree.process.argv then
+		-- Check registered process handlers first (e.g., Claude Code)
+		local restore_cmd = process_handlers.get_restore_command(pane_tree.process, pane_tree)
+		if not restore_cmd then
+			-- Fall back to allowlist-based argv replay
+			local proc_name = pane_tree.process.name or ""
+			local base_name = proc_name:match("[/\\]?([^/\\]+)$") or proc_name
+			base_name = base_name:gsub("%.exe$", ""):lower()
+
+			if SAFE_RESTORE_PROCESSES[base_name] then
+				restore_cmd = wezterm.shell_join_args(pane_tree.process.argv)
+			else
+				wezterm.log_warn(
+					"resurrect: skipping restore of unrecognized process: " .. base_name
+						.. " (add to SAFE_RESTORE_PROCESSES or register a process_handler)"
+				)
+			end
+		end
+
+		if restore_cmd then
+			-- Delay sending the command so the shell has time to initialize.
+			-- pane:send_text() during gui-startup fires before the shell is ready,
+			-- causing the command to be lost (especially on Windows with PowerShell).
+			local pane_id = pane:pane_id()
+			wezterm.time.call_after(pub.process_restore_delay_seconds, function()
+				local target_pane = wezterm.mux.get_pane(pane_id)
+				if target_pane then
+					target_pane:send_text(restore_cmd .. "\r\n")
+				end
+			end)
+		end
+	elseif pane_tree.text then
+		pane:inject_output(pane_tree.text:gsub("%s+$", ""))
+		-- Send newline to trigger a fresh shell prompt at the correct position
+		pane:send_text("\r\n")
+	end
+end
+
+return pub

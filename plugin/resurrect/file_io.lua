@@ -1,0 +1,190 @@
+local wezterm = require("wezterm") --[[@as Wezterm]] --- this type cast invokes the LSP module for Wezterm
+
+local pub = {
+	encryption = { enable = false },
+}
+
+-- Write a file atomically: writes to a temp file first, then renames.
+-- This prevents data loss if the process crashes mid-write.
+---@param file_path string full filename
+---@return boolean success result
+---@return string|nil error
+function pub.write_file(file_path, str)
+	local tmp_path = file_path .. ".tmp"
+	local suc, err = pcall(function()
+		local handle = io.open(tmp_path, "w+")
+		if not handle then
+			error("Could not open file: " .. tmp_path)
+		end
+		handle:write(str)
+		handle:flush()
+		handle:close()
+		-- Atomic rename (on same filesystem)
+		local ok, rename_err = os.rename(tmp_path, file_path)
+		if not ok then
+			-- Fallback: on Windows os.rename can fail if target exists
+			os.remove(file_path)
+			ok, rename_err = os.rename(tmp_path, file_path)
+			if not ok then
+				error("Could not rename temp file: " .. (rename_err or "unknown"))
+			end
+		end
+	end)
+	if not suc then
+		os.remove(tmp_path)
+	end
+	return suc, err
+end
+
+-- Check whether a file exists and is readable.
+---@param file_path string
+---@return boolean
+function pub.file_exists(file_path)
+	local handle = io.open(file_path, "rb")
+	if handle then
+		handle:close()
+		return true
+	end
+	return false
+end
+
+-- Move a file. Works on Windows, where os.rename fails if the destination
+-- already exists (POSIX silently overwrites). Falls back to remove-then-rename.
+-- The 1-instruction race between remove and rename can lose the destination
+-- on a crash, but for our save-flow callers the destination is the .bak we
+-- just wrote, not the canonical file -- so worst case is losing one backup.
+---@param src string
+---@param dst string
+---@return boolean success
+---@return string|nil error
+function pub.move_file(src, dst)
+	local ok = os.rename(src, dst)
+	if ok then
+		return true, nil
+	end
+	os.remove(dst)
+	local ok2, err = os.rename(src, dst)
+	if not ok2 then
+		return false, err
+	end
+	return true, nil
+end
+
+-- Copy a file by read + write. Not atomic; intended for state-backup snapshots
+-- where the source is the authoritative copy and a partial write is acceptable
+-- (the next backup pass will overwrite it).
+---@param src string
+---@param dst string
+---@return boolean success
+---@return string|nil error
+function pub.copy_file(src, dst)
+	local rok, content = pub.read_file(src)
+	if not rok then
+		return false, content
+	end
+	return pub.write_file(dst, content)
+end
+
+-- Read a file and return its content
+---@param file_path string full filename
+---@return boolean success result
+---@return string|nil error
+function pub.read_file(file_path)
+	local stdout
+	local suc, err = pcall(function()
+		local handle = io.open(file_path, "r")
+		if not handle then
+			error("Could not open file: " .. file_path)
+		end
+		stdout = handle:read("*a")
+		handle:close()
+	end)
+	if suc then
+		return suc, stdout
+	else
+		return suc, err
+	end
+end
+
+--- Merges user-supplied options with default options
+--- @param user_opts encryption_opts
+function pub.set_encryption(user_opts)
+	pub.encryption = require("resurrect.encryption")
+	for k, v in pairs(user_opts) do
+		if v ~= nil then
+			pub.encryption[k] = v
+		end
+	end
+end
+
+--- Sanitize the input by replacing control characters and invalid UTF-8 sequences with valid \uxxxx unicode
+--- @param data string
+--- @return string
+local function sanitize_json(data)
+	wezterm.emit("resurrect.file_io.sanitize_json.start", #data)
+	-- escapes control characters to ensure valid json
+	data = data:gsub("[\x00-\x1F]", function(c)
+		return string.format("\\u00%02X", string.byte(c))
+	end)
+	wezterm.emit("resurrect.file_io.sanitize_json.finished")
+	return data
+end
+
+---@param file_path string
+---@param state table
+---@param event_type "workspace" | "window" | "tab"
+function pub.write_state(file_path, state, event_type)
+	wezterm.emit("resurrect.file_io.write_state.start", file_path, event_type)
+	local json_state = wezterm.json_encode(state)
+	json_state = sanitize_json(json_state)
+	if pub.encryption.enable then
+		wezterm.emit("resurrect.file_io.encrypt.start", file_path)
+		local ok, err = pcall(function()
+			return pub.encryption.encrypt(file_path, json_state)
+		end)
+		if not ok then
+			wezterm.emit("resurrect.error", "Encryption failed: " .. tostring(err))
+			wezterm.log_error("Encryption failed: " .. tostring(err))
+		else
+			wezterm.emit("resurrect.file_io.encrypt.finished", file_path)
+		end
+	else
+		local ok, err = pub.write_file(file_path, json_state)
+		if not ok then
+			wezterm.emit("resurrect.error", "Failed to write state: " .. err)
+			wezterm.log_error("Failed to write state: " .. err)
+		end
+	end
+	wezterm.emit("resurrect.file_io.write_state.finished", file_path, event_type)
+end
+
+---@param file_path string
+---@return table|nil
+function pub.load_json(file_path)
+	local json
+	if pub.encryption.enable then
+		wezterm.emit("resurrect.file_io.decrypt.start", file_path)
+		local ok, output = pcall(function()
+			return pub.encryption.decrypt(file_path)
+		end)
+		if not ok then
+			wezterm.emit("resurrect.error", "Decryption failed: " .. tostring(output))
+			wezterm.log_error("Decryption failed: " .. tostring(output))
+		else
+			json = output
+			wezterm.emit("resurrect.file_io.decrypt.finished", file_path)
+		end
+	else
+		local ok, content = pub.read_file(file_path)
+		if ok then
+			json = content
+		end
+	end
+	if not json then
+		return nil
+	end
+
+	return wezterm.json_parse(json)
+end
+
+return pub
