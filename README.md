@@ -1,8 +1,6 @@
-# resurrect.wezterm
+# wezterm-persist
 
-Resurrect your terminal environment!⚰️ A plugin to save the state of your windows, tabs and panes. Inspired by [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) and [tmux-continuum](https://github.com/tmux-plugins/tmux-continuum).
-
-![Screencastfrom2024-07-2918-50-57-ezgif com-resize](https://github.com/user-attachments/assets/640aefea-793c-486d-9579-1a9c8bb4c1fa)
+Save and restore your WezTerm sessions. Inspired by [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect), [tmux-persist](https://github.com/hyoretsu/tmux-persist) and [tmux-continuum](https://github.com/tmux-plugins/tmux-continuum).
 
 ## Features
 
