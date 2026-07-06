@@ -712,15 +712,12 @@ local function restore_instances(instance_ids, window, pane, restore_opts)
 	end
 end
 
---- Show the main instance selector with multi-select support.
---- Space (Enter) toggles selection, then pick "Restore selected" to restore all.
---- Esc dismisses to start a fresh terminal session.
+--- Show the main instance selector.
+--- Simple list: pick one to restore, Esc for fresh terminal.
 ---@param window table GuiWindow
 ---@param pane table Pane
 ---@param restore_opts table options passed to restore_workspace
----@param selected? table set of already-selected instance IDs (for re-showing after toggle)
-function pub.show_instance_selector(window, pane, restore_opts, selected)
-	selected = selected or {}
+function pub.show_instance_selector(window, pane, restore_opts)
 	local instances = pub.list_instances()
 
 	-- If no instances, fall through to fuzzy_load for named saves
@@ -730,87 +727,47 @@ function pub.show_instance_selector(window, pane, restore_opts, selected)
 		return
 	end
 
-	-- Build choices with selection markers
+	-- Build minimal choices
 	local choices = {}
 
-	-- Count selections
-	local sel_count = 0
-	for _ in pairs(selected) do sel_count = sel_count + 1 end
-
-	-- "Restore selected" at the top when there are selections
-	if sel_count > 0 then
-		table.insert(choices, {
-			id = "__RESTORE_SELECTED__",
-			label = ">>> Restore " .. sel_count .. " selected instance" .. (sel_count > 1 and "s" or "") .. " <<<",
-		})
-	end
-
-	-- Instance entries with [x] / [ ] markers
 	for _, entry in ipairs(instances) do
-		local marker = selected[entry.instance_id] and "[x] " or "[ ] "
+		local meta = entry.meta
+		-- Simple name
+		local name = meta.display_name and meta.display_name ~= "" and meta.display_name or "Session"
+		-- Relative time
+		local time_str = ""
+		if meta.last_save_epoch and meta.last_save_epoch > 0 then
+			local diff = os.time() - meta.last_save_epoch
+			if diff < 60 then
+				time_str = "just now"
+			elseif diff < 3600 then
+				time_str = math.floor(diff / 60) .. "m ago"
+			elseif diff < 86400 then
+				time_str = math.floor(diff / 3600) .. "h ago"
+			else
+				time_str = math.floor(diff / 86400) .. "d ago"
+			end
+		end
+		-- Tab count
+		local tabs = meta.tab_count or 0
+		local tab_str = tabs == 1 and "1 tab" or (tabs .. " tabs")
+
 		table.insert(choices, {
 			id = entry.instance_id,
-			label = marker .. pub.format_instance_summary(entry.meta),
+			label = name .. "  " .. time_str .. "  " .. tab_str,
 		})
 	end
-
-	-- Action entries at the bottom
-	table.insert(choices, { id = "__BROWSE_NAMED__", label = "[Browse named saves]" })
-	table.insert(choices, { id = "__RENAME_MODE__", label = "[Rename an instance]" })
-	table.insert(choices, { id = "__DELETE_MODE__", label = "[Delete saved instances]" })
 
 	window:perform_action(
 		wezterm.action.InputSelector({
 			action = wezterm.action_callback(function(inner_win, inner_pane, id, label)
-				if not id then
-					-- Esc pressed: start fresh terminal (do nothing)
-					return
-				end
-
-				if id == "__RESTORE_SELECTED__" then
-					-- Restore all selected instances
-					local ids = {}
-					for _, entry in ipairs(instances) do
-						if selected[entry.instance_id] then
-							table.insert(ids, entry.instance_id)
-						end
-					end
-					restore_instances(ids, inner_win, inner_pane, restore_opts)
-					return
-				end
-
-				if id == "__BROWSE_NAMED__" then
-					local fuzzy_loader = require("resurrect.fuzzy_loader")
-					fuzzy_loader.fuzzy_load(
-						inner_win, inner_pane,
-						make_fuzzy_restore_callback(restore_opts, inner_pane),
-						{ ignore_instances = true }
-					)
-					return
-				end
-
-				if id == "__RENAME_MODE__" then
-					pub.show_rename_selector(inner_win, inner_pane, restore_opts)
-					return
-				end
-
-				if id == "__DELETE_MODE__" then
-					pub.show_delete_selector(inner_win, inner_pane, restore_opts)
-					return
-				end
-
-				-- Toggle selection on this instance and re-show the selector
-				if selected[id] then
-					selected[id] = nil
-				else
-					selected[id] = true
-				end
-				pub.show_instance_selector(inner_win, inner_pane, restore_opts, selected)
+				if not id then return end
+				restore_instances({ id }, inner_win, inner_pane, restore_opts)
 			end),
-			title = "Restore Instances",
-			description = "Enter = toggle selection, then pick 'Restore selected'. Esc = start fresh terminal",
+			title = "Sessions",
+			description = "Select session to restore  |  Esc = new session",
 			choices = choices,
-			fuzzy = false,
+			fuzzy = true,
 		}),
 		pane
 	)

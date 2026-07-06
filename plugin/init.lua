@@ -147,7 +147,7 @@ function pub.setup(config, opts)
 
 			local status = ""
 			if last_save_time then
-				status = " " .. last_save_time
+				status = "\239\131\135 " .. last_save_time
 				if title_str ~= "" then
 					status = status .. " | " .. title_str
 				end
