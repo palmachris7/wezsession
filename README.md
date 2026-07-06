@@ -1,14 +1,14 @@
-# wezterm-persist
+# wezsession
 
 Save and restore your WezTerm sessions. Inspired by [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect), [tmux-persist](https://github.com/hyoretsu/tmux-persist) and [tmux-continuum](https://github.com/tmux-plugins/tmux-continuum).
 
 ## Features
 
 - Restore your windows, tabs and panes with the layout and text from a saved state.
-- Restore shell output from a saved session.
 - Save the state of your current window, with every window, tab and pane state stored in a `json` file.
 - Restore the save from a `json` file.
-- Re-attach to remote domains (e.g. SSH, SSHMUX, WSL, Docker, ect.).
+- Re-attach to remote domains (e.g. SSH, SSHMUX, WSL, Docker).
+- Minimal session selector with fuzzy search.
 - Optionally enable encryption and decryption of the saved state.
 
 ## Quick Start
@@ -23,12 +23,12 @@ Paste into your terminal. This creates a new config or patches your existing one
 $f="$HOME\.wezterm.lua"; if (!(Test-Path $f)) { @"
 local wezterm = require("wezterm")
 local config = wezterm.config_builder()
-local resurrect = wezterm.plugin.require("https://github.com/YedPool/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 resurrect.setup(config)
 
 return config
-"@ | Set-Content $f -Encoding UTF8; Write-Host "Created $f with resurrect enabled" } elseif (Select-String -Path $f -Pattern "resurrect" -Quiet) { Write-Host "resurrect is already in your config" } else { Copy-Item $f "$f.bak"; $c = Get-Content $f -Raw; $req = 'local resurrect = wezterm.plugin.require("https://github.com/YedPool/resurrect.wezterm")'; $c = $c -replace '(local\s+config\s*=\s*wezterm\.config_builder\(\))', "`$1`n$req"; $c = $c -replace '(return\s+config)', "resurrect.setup(config)`n`$1"; Set-Content $f $c -Encoding UTF8; Write-Host "Updated $f (backup saved to $f.bak)" }
+"@ | Set-Content $f -Encoding UTF8; Write-Host "Created $f with resurrect enabled" } elseif (Select-String -Path $f -Pattern "resurrect" -Quiet) { Write-Host "resurrect is already in your config" } else { Copy-Item $f "$f.bak"; $c = Get-Content $f -Raw; $req = 'local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")'; $c = $c -replace '(local\s+config\s*=\s*wezterm\.config_builder\(\))', "`$1`n$req"; $c = $c -replace '(return\s+config)', "resurrect.setup(config)`n`$1"; Set-Content $f $c -Encoding UTF8; Write-Host "Updated $f (backup saved to $f.bak)" }
 ```
 
 **Bash (macOS / Linux):**
@@ -37,13 +37,13 @@ return config
 f="$HOME/.wezterm.lua"; if [ ! -f "$f" ]; then cat > "$f" << 'EOF'
 local wezterm = require("wezterm")
 local config = wezterm.config_builder()
-local resurrect = wezterm.plugin.require("https://github.com/YedPool/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 resurrect.setup(config)
 
 return config
 EOF
-echo "Created $f with resurrect enabled"; elif grep -q "resurrect" "$f"; then echo "resurrect is already in your config"; else cp "$f" "$f.bak"; sed -i.tmp '/config_builder()/a local resurrect = wezterm.plugin.require("https://github.com/YedPool/resurrect.wezterm")' "$f"; sed -i.tmp 's/return config/resurrect.setup(config)\nreturn config/' "$f"; rm -f "$f.tmp"; echo "Updated $f (backup saved to $f.bak)"; fi
+echo "Created $f with resurrect enabled"; elif grep -q "resurrect" "$f"; then echo "resurrect is already in your config"; else cp "$f" "$f.bak"; sed -i.tmp '/config_builder()/a local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")' "$f"; sed -i.tmp 's/return config/resurrect.setup(config)\nreturn config/' "$f"; rm -f "$f.tmp"; echo "Updated $f (backup saved to $f.bak)"; fi
 ```
 
 Then restart WezTerm. On first launch it automatically downloads the plugin from GitHub.
@@ -67,7 +67,7 @@ If you don't have one yet, create it. See the [WezTerm config docs](https://wezf
 Add the `require` line near the top (after `local config = wezterm.config_builder()`):
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/YedPool/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 ```
 
 Add the `setup` call before `return config`:
@@ -81,7 +81,7 @@ A complete minimal config looks like this:
 ```lua
 local wezterm = require("wezterm")
 local config = wezterm.config_builder()
-local resurrect = wezterm.plugin.require("https://github.com/YedPool/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 -- your existing config here (colors, fonts, shell, etc.)
 
@@ -139,13 +139,13 @@ If you need fine-grained control over each component, you can configure them ind
 
 ```lua
 local wezterm = require("wezterm")
-local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 ```
 
 2. Saving workspace, window and/or tab state based on name and title:
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 config.keys = {
   -- ...
@@ -180,7 +180,7 @@ config.keys = {
 3. Loading workspace or window state via. fuzzy finder:
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 config.keys = {
   -- ...
@@ -230,7 +230,7 @@ Public key: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 4.2. Enable encryption in your Wezterm config:
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 resurrect.state_manager.set_encryption({
   enable = true,
   method = "age" -- "age" is the default encryption method, but you can also specify "rage" or "gpg"
@@ -427,7 +427,7 @@ on_pane_restore: fun(pane_tree: pane_tree)} -- Function to restore panes, use re
 #### Windows not resizing correctly
 
 Some users has had problems with `window_decorations` and `window_padding`
-configuration options, which caused issues when resizing, see [comment](https://github.com/MLFlexer/resurrect.wezterm/issues/72#issuecomment-2582912347).
+configuration options, which caused issues when resizing, see [comment](https://github.com/palmachris7/wezsession/issues/72#issuecomment-2582912347).
 To avoid this, set the `resize_window` to false.
 
 ### Restoring into the current window
@@ -585,7 +585,7 @@ Here is an example of a json file:
                   "pixel_height":1000,
                   "pixel_width":1910,
                   "process":"/bin/bash", -- value is empty if attached to a remote domain
-                  "text":"Some text", -- not saved if attached to a remote domain, see https://github.com/MLFlexer/resurrect.wezterm/issues/41
+                  "text":"Some text", -- not saved if attached to a remote domain, see https://github.com/palmachris7/wezsession/issues/41
                   "top":0,
                   "width":191
                },
@@ -604,7 +604,7 @@ Here is an example of a json file:
 You can use the fuzzy finder to delete a saved state file by adding a keybind to your config:
 
 ```lua
-local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+local resurrect = wezterm.plugin.require("https://github.com/palmachris7/wezsession")
 
 config.keys = {
   -- ...
